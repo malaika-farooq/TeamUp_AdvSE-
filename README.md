@@ -135,3 +135,11 @@ Supabase, Playwright, and axe-core.
 
 See the [source guide](src/README.md), [project guide](docs/README.md), and
 [database guide](drizzle/README.md) for implementation details.
+
+## Project management and quality evidence
+
+- [Agile execution (Scrum), Definition of Done and sprint backlog](docs/agile/README.md)
+- [Contribution workflow](CONTRIBUTING.md) — backlog IDs in branches, commits and pull requests
+- [Test report](docs/testing/TEST_REPORT.md) and [risk register](docs/testing/RISK_REGISTER.md)
+- [Proposal and progress report documents](docs/reports/)
+- CI: `.github/workflows/ci.yml` runs type check, lint, unit tests with coverage, build and accessibility tests
