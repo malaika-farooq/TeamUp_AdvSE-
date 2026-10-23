@@ -1,6 +1,6 @@
 # TeamUp test guide
 
-The suite contains **141 automated unit tests** and **6 opt-in, read-only
+The suite contains **160 automated unit tests** and **6 opt-in, read-only
 database integration tests**. A separate accessibility suite runs **22 browser
 checks**. Additional browser and database-write scenarios are listed separately
 as manual cases. This is a starting regression suite, not proof that
@@ -57,6 +57,7 @@ tests/
     frontend/
       auth.test.mjs             OAuth session handoff and RPC token attachment
       queries.test.mjs          Feature query behavior and database errors
+      schedule.test.mjs         Weekly recurrence, availability overlap, task error messages
     shared/
       error-reporting.test.mjs  SSR safety and browser telemetry forwarding
       results.test.mjs          Database results, safe accents, error recovery
@@ -188,7 +189,7 @@ check. Manual browser scenarios remain distinct from automated checks.
 
 ## Verified results
 
-- Unit suite: 141 passed.
+- Unit suite: 160 passed (see docs/testing/TEST_REPORT.md).
 - Chromium accessibility suite: 22 passed across desktop and mobile projects.
 - Application and accessibility-harness TypeScript checks: passed.
 - Production build: passed.
