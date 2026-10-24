@@ -55,14 +55,11 @@ import { logActivity } from "@/frontend/features/activity/api/queries";
 import { notify } from "@/frontend/features/notifications/api/queries";
 import { type Task, type TaskPriority, type TaskStatus, type Team } from "@/types/domain";
 import { cn } from "@/lib/utils";
+import { taskErrorMessage } from "@/frontend/features/tasks/errors";
+
+export { taskErrorMessage };
 
 type TeamLike = Pick<Team, "id" | "name">;
-
-export function taskErrorMessage(error: { message: string; code?: string }) {
-  if (error.code === "42501")
-    return "You don't have permission to change this task — only its creator, its assignee, or a team admin can.";
-  return error.message;
-}
 
 export function TaskBoard({
   tasks,
