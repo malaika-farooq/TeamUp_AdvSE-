@@ -86,6 +86,7 @@ export function TaskBoard({
   const [dueFilter, setDueFilter] = useState<string>("all");
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const [local, setLocal] = useState<Task[]>(tasks);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   useEffect(() => setLocal(tasks), [tasks]);
   useEffect(() => setSearch(initialSearch), [initialSearch]);
@@ -112,11 +113,13 @@ export function TaskBoard({
   const filtered = useMemo(() => {
     const now = Date.now();
     return local.filter((t) => {
+      
       if (teamFilter !== "all" && t.team_id !== teamFilter) return false;
       if (assigneeFilter === "me" && t.assignee_id !== user?.id) return false;
       if (assigneeFilter !== "all" && assigneeFilter !== "me" && t.assignee_id !== assigneeFilter)
         return false;
       if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
+      if (statusFilter !== "all" && t.status !== statusFilter) return false;
       if (dueFilter === "overdue")
         if (!(t.due_date && new Date(t.due_date).getTime() < now && t.status !== "done"))
           return false;
@@ -129,7 +132,7 @@ export function TaskBoard({
       }
       return true;
     });
-  }, [local, teamFilter, assigneeFilter, priorityFilter, dueFilter, search, user?.id]);
+  }, [local, teamFilter, assigneeFilter, priorityFilter, statusFilter, dueFilter, search, user?.id]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -233,6 +236,18 @@ export function TaskBoard({
           options={[
             { value: "all", label: "Any priority" },
             ...PRIORITIES.map((p) => ({ value: p, label: p })),
+          ]}
+        />
+        <FilterSelect
+          value={statusFilter}
+          onChange={setStatusFilter}
+          label="Status"
+          options={[
+            { value: "all", label: "All statuses" },
+            ...STATUSES.map((status) => ({
+              value: status.key,
+              label: status.label,
+            })),
           ]}
         />
         <FilterSelect
