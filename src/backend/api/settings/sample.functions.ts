@@ -152,7 +152,7 @@ export const createSampleWorkspace = createServerFn({ method: "POST" })
     return { teamId, created: true };
   });
 
-  //Adding post method to remove the sample workspace created by the user. This will delete the team and all associated data for that user.
+//Adding post method to remove the sample workspace created by the user. This will delete the team and all associated data for that user.
 export const removeSampleWorkspace = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
