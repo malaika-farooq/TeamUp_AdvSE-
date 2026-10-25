@@ -113,7 +113,6 @@ export function TaskBoard({
   const filtered = useMemo(() => {
     const now = Date.now();
     return local.filter((t) => {
-      
       if (teamFilter !== "all" && t.team_id !== teamFilter) return false;
       if (assigneeFilter === "me" && t.assignee_id !== user?.id) return false;
       if (assigneeFilter !== "all" && assigneeFilter !== "me" && t.assignee_id !== assigneeFilter)
@@ -132,7 +131,16 @@ export function TaskBoard({
       }
       return true;
     });
-  }, [local, teamFilter, assigneeFilter, priorityFilter, statusFilter, dueFilter, search, user?.id]);
+  }, [
+    local,
+    teamFilter,
+    assigneeFilter,
+    priorityFilter,
+    statusFilter,
+    dueFilter,
+    search,
+    user?.id,
+  ]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
