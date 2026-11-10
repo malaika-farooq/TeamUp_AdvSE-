@@ -69,6 +69,6 @@ bun run format    # Format source files
 - **Frontend:** React 19, TypeScript, TanStack Start/Router/Query, Tailwind CSS, Motion, dnd-kit and Recharts.
 - **Backend:** TypeScript server functions and TanStack server routes.
 - **Data and auth:** Lovable Cloud with PostgreSQL, JWT authentication, Row Level Security, private storage and realtime.
-- **AI:** Lovable AI Gateway through server-side helpers using `google/gemini-3.8-flash`.
+- **AI:** NVIDIA NIM (OpenAI-compatible API) through server-side helpers; model set by `NVIDIA_MODEL` (default `nvidia/nemotron-3.5-lightning-30b-a3b`).
 
 Never commit private keys, service-role credentials, downloaded dependencies, generated build output or real user data.

@@ -48,18 +48,14 @@ The tasks, teams, resources, chat threads and other records are loaded from the 
 
 For a localhost presentation, email/password sign-in is the dependable option. Google sign-in uses an external redirect flow and may require the localhost callback to be allowed separately; it has not been verified from a downloaded local copy.
 
-## 4. AI features: important limitation
+## 4. AI features
 
-The AI uses the Lovable AI Gateway through server-side code. Its `LOVABLE_API_KEY` is automatically provisioned and managed by Lovable. It is private, workspace-scoped and not exportable into a downloaded project.
+The AI uses NVIDIA NIM through server-side code. Create a key at https://build.nvidia.com/settings/api-keys and add `NVIDIA_API_KEY=nvapi-...` to your local `.env` (and to your host's server secrets when deploying). It is never exposed to the browser.
 
-Therefore:
-
-- The AI works in the Lovable preview and on the published TeamUp site.
-- A downloaded copy started with plain `bun run dev` does not include the managed AI credential.
-- The ZIP deliberately contains no AI key, service-role key or database password.
+- Without `NVIDIA_API_KEY` the AI Assistant shows a "not configured" message; the rest of the app works.
+- The repository deliberately contains no AI key, service-role key or database password.
 - Never put a private key in a `VITE_*` variable; those values are exposed to the browser.
-
-For the safest complete demonstration, show the main application on localhost and open the AI Assistant on the published site. Making AI run under a completely independent local backend would require a separate self-hosted AI-provider integration and credential; that is a different setup and is not included here.
+- Optionally set `NVIDIA_MODEL` to use a different NIM model.
 
 Published TeamUp site: **https://team-up-plan.lovable.app**
 
