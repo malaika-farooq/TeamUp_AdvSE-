@@ -16,6 +16,19 @@ dist-ssr
 .nitro
 *.local
 
+# Local environment variables and credentials
+.env
+.env.*
+!.env.example
+
+# Supabase local development state
+supabase/.temp/
+supabase/.branches/
+
+# Test and coverage output
+coverage/
+.nyc_output/
+
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
