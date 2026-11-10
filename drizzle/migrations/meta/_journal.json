@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789790775897,
+      "tag": "0000_studysync_core_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789790824817,
+      "tag": "0001_storage_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792811650782,
+      "tag": "0002_ai_chat_threads",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792811737682,
+      "tag": "0003_ai_team_context_functions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792812671631,
+      "tag": "0004_teammates_can_read_profiles",
+      "breakpoints": true
+    }
+  ]
+}
