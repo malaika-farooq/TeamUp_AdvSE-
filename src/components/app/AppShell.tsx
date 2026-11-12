@@ -20,6 +20,7 @@ import {
   Sun,
   Users,
   FolderOpen,
+  Handshake,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +48,7 @@ const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/teams", label: "My Teams", icon: Users },
   { to: "/discover", label: "Discover", icon: Compass },
+  { to: "/partners", label: "Study Partners", icon: Handshake },
   { to: "/tasks", label: "Tasks", icon: ListChecks },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/resources", label: "Resources", icon: FolderOpen },

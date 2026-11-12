@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { aiJson, friendlyAIError, UNTRUSTED_NOTE } from "@/lib/ai-gateway";
 import { assertTeamMember, buildTeamContext } from "@/lib/ai-context";
-import { MAX_TEAMMATE_SUGGESTIONS, factualReason, rankCandidates } from "@/lib/teammate-ranking";
+import { MAX_TEAMMATE_SUGGESTIONS, factualReason, matchWantedSkills, rankCandidates } from "@/lib/teammate-ranking";
 
 const DAY = 864e5;
 const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -151,8 +151,16 @@ const LOAD_ERROR = "Couldn't load student profiles to compare. Please try again.
 
 export const suggestTeammates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ teamId: z.string().uuid() }).parse(d))
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        teamId: z.string().uuid(),
+        wantedSkills: z.array(z.string().trim().min(1).max(40)).max(8).optional(),
+      })
+      .parse(d),
+  )
   .handler(async ({ data, context }): Promise<TeammateResult> => {
+    const wanted = data.wantedSkills ?? [];
     const sb = context.supabase;
     await assertTeamMember(sb, context.userId, data.teamId);
 
@@ -216,9 +224,14 @@ export const suggestTeammates = createServerFn({ method: "POST" })
           ),
         ],
         overlapMinutes: (overlapRes.data ?? []).find((o) => o.candidate_id === p.id)?.overlap_minutes ?? 0,
+        wantedSkills: matchWantedSkills(
+          (poolSkillsRes.data ?? []).filter((s) => s.user_id === p.id && s.skills).map((s) => s.skills!.name),
+          wanted,
+        ),
       })),
       memberIds,
       MAX_TEAMMATE_SUGGESTIONS,
+      { requireWanted: wanted.length > 0 },
     );
 
     if (!ranked.length) return { suggestions: [], empty: "no_matches" };
@@ -227,6 +240,7 @@ export const suggestTeammates = createServerFn({ method: "POST" })
     const keyed = ranked.map((c, i) => ({ key: `c${i + 1}`, c }));
     const facts = (c: (typeof ranked)[number]) => {
       const f: string[] = [];
+      if (c.wantedSkills?.length) f.push(`has the skills you asked for: ${c.wantedSkills.join(", ")}`);
       if (c.sharedCourses.length) f.push(`shared courses: ${c.sharedCourses.join(", ")}`);
       if (c.newSkills.length) f.push(`skills the team lacks: ${c.newSkills.join(", ")}`);
       const h = Math.round((c.overlapMinutes / 60) * 2) / 2;
@@ -240,7 +254,7 @@ export const suggestTeammates = createServerFn({ method: "POST" })
         [
           {
             role: "system",
-            content: `For each candidate, write one short, friendly sentence (under 30 words) on why they would help this student team. Name the most useful specific facts: shared courses first, then 2-3 of the skills the team lacks, then overlapping free time. Use only the listed facts. Do not mention facts that are not listed, and never say what a candidate lacks. Never invent courses, skills, times or personal details. Return one item per candidate key. ${UNTRUSTED_NOTE}`,
+            content: `For each candidate, write one short, friendly sentence (under 30 words) on why they would help this student team. Name the most useful specific facts: shared courses first, then the skills the user asked for, then 2-3 of the skills the team lacks, then overlapping free time. Use only the listed facts. Do not mention facts that are not listed, and never say what a candidate lacks. Never invent courses, skills, times or personal details. Return one item per candidate key. ${UNTRUSTED_NOTE}`,
           },
           {
             role: "user",

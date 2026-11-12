@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { toast } from "sonner";
 import {
   CalendarClock,
+  Check,
   Clock,
   GraduationCap,
   ListPlus,
@@ -14,6 +15,7 @@ import {
   UserPlus,
   Wand2,
   Wrench,
+  X,
 } from "lucide-react";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { Shimmer } from "@/components/ai-elements/shimmer";
@@ -539,18 +541,69 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
   const [result, setResult] = useState<TeammateResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
+  const [decisions, setDecisions] = useState<Record<string, "accepted" | "declined">>({});
+  const [pending, setPending] = useState<string | null>(null);
+  const [wanted, setWanted] = useState<string[]>([]);
+  const [wantedInput, setWantedInput] = useState("");
+
+  function addWanted() {
+    const parts = wantedInput
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (!parts.length) return;
+    setWanted((w) => [...new Set([...w, ...parts])].slice(0, 8));
+    setWantedInput("");
+  }
 
   useEffect(() => {
     setResult(null);
     setError(null);
+    setDecisions({});
   }, [teamId]);
+
+  /** Accept = invite this student: they get a notification pointing them to the team. */
+  async function accept(p: { id: string; name: string }) {
+    if (!user || pending) return;
+    setPending(p.id);
+    const { error: err } = await supabase.from("notifications").insert({
+      user_id: p.id,
+      type: "team_suggestion",
+      title: "A team would like you to join",
+      body: "A student team thinks you'd be a great fit. Open the team and request to join.",
+      link: "/discover",
+      dedupe_key: `suggest:${teamId}:${p.id}`,
+    });
+    setPending(null);
+    // 23505 = already invited earlier; treat as accepted.
+    if (err && err.code !== "23505") {
+      toast.error("Couldn't send the invitation. Please try again.");
+      return;
+    }
+    setDecisions((d) => ({ ...d, [p.id]: "accepted" }));
+    void logActivity(teamId, user.id, "teammate_suggested", `invited ${p.name} to join`, p.id);
+    toast.success(`Invitation sent to ${p.name}.`);
+  }
+
+  function decline(id: string) {
+    setDecisions((d) => ({ ...d, [id]: "declined" }));
+  }
+
+  function undo(id: string) {
+    setDecisions((d) => {
+      const { [id]: _removed, ...rest } = d;
+      return rest;
+    });
+  }
 
   async function run() {
     setBusy(true);
     setError(null);
     setResult(null);
+    setDecisions({});
     try {
-      const res = await suggest({ data: { teamId } });
+      const res = await suggest({ data: { teamId, wantedSkills: wanted.length ? wanted : undefined } });
       if (!res || !Array.isArray(res.suggestions)) {
         throw new Error("The assistant returned an unreadable answer. Please try again.");
       }
@@ -573,6 +626,47 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
         team doesn't have yet, and how many hours of free time overlap each week — nobody's exact
         schedule is shown.
       </p>
+      <div className="space-y-2">
+        <Label htmlFor="wanted-skills">What kind of teammate do you want? (optional)</Label>
+        <div className="flex gap-2">
+          <Input
+            id="wanted-skills"
+            value={wantedInput}
+            placeholder="Skills you need, e.g. SQL, React, UI Design"
+            onChange={(e) => setWantedInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addWanted();
+              }
+            }}
+          />
+          <Button type="button" variant="outline" onClick={addWanted}>
+            Add
+          </Button>
+        </div>
+        {wanted.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {wanted.map((w) => (
+              <Badge key={w} variant="secondary" className="gap-1">
+                {w}
+                <button
+                  type="button"
+                  aria-label={`Remove ${w}`}
+                  onClick={() => setWanted((x) => x.filter((y) => y !== w))}
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground">
+          {wanted.length
+            ? "Only students with at least one of these skills are suggested."
+            : "Leave empty to get the best overall matches."}
+        </p>
+      </div>
       <Button onClick={run} disabled={busy}>
         {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Wand2 className="mr-2 size-4" />}
         {result ? "Suggest again" : "Suggest teammates"}
@@ -642,6 +736,35 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
                 </Badge>
               )}
             </div>
+            {decisions[p.id] === "accepted" ? (
+              <Badge className="bg-teal/15 text-foreground hover:bg-teal/15">
+                <Check className="mr-1 size-3" />
+                Invitation sent
+              </Badge>
+            ) : decisions[p.id] === "declined" ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <X className="size-4" />
+                Declined
+                <Button size="sm" variant="ghost" onClick={() => undo(p.id)}>
+                  Undo
+                </Button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button size="sm" onClick={() => accept(p)} disabled={pending !== null}>
+                  {pending === p.id ? (
+                    <Loader2 className="mr-1 size-4 animate-spin" />
+                  ) : (
+                    <Check className="mr-1 size-4" />
+                  )}
+                  Accept
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => decline(p.id)} disabled={pending === p.id}>
+                  <X className="mr-1 size-4" />
+                  Decline
+                </Button>
+              </div>
+            )}
           </motion.li>
         ))}
       </ol>

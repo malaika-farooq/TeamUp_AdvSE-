@@ -9,6 +9,7 @@ import {
   CalendarCheck,
   CalendarClock,
   FileText,
+  Handshake,
   HelpCircle,
   ListChecks,
   Loader2,
@@ -23,6 +24,7 @@ import { CardSkeletons, EmptyState } from "@/components/app/states";
 import { AssistantMark } from "@/components/app/ai/AssistantMark";
 import { ThreadList } from "@/components/app/ai/ThreadList";
 import { BreakdownTool, PlanTool, TeammatesTool, WriterTool } from "@/components/app/ai/tools";
+import { PartnerMatchTool, SessionPlanTool } from "@/components/app/ai/partner-tools";
 import { Suggestion } from "@/components/ai-elements/suggestion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,7 +62,10 @@ export const Route = createFileRoute("/_authenticated/assistant/")({
   component: AssistantHub,
 });
 
-type ToolId = "plan" | WriteTool | "breakdown" | "teammates";
+type ToolId = "plan" | WriteTool | "breakdown" | "teammates" | "partners" | "sessionplan";
+
+/** Tools that are about you personally and do not need a team selected. */
+const PERSONAL_TOOLS: ToolId[] = ["partners", "sessionplan"];
 
 const TOOLS: {
   id: ToolId;
@@ -68,7 +73,7 @@ const TOOLS: {
   desc: string;
   icon: LucideIcon;
   tone: string;
-  group: "Plan" | "Track" | "Study" | "Team";
+  group: "Plan" | "Track" | "Study" | "Team" | "Partners";
 }[] = [
   { id: "plan", name: "Plan tasks", desc: "Tasks with due dates and the best-fit teammate", icon: ListChecks, tone: "bg-primary/15 text-primary", group: "Plan" },
   { id: "breakdown", name: "Break down a task", desc: "Split a big task into checklist steps", icon: Wrench, tone: "bg-primary/15 text-primary", group: "Plan" },
@@ -77,6 +82,8 @@ const TOOLS: {
   { id: "agenda", name: "Meeting agenda", desc: "A time-boxed plan for your next session", icon: CalendarClock, tone: "bg-blue/15 text-blue", group: "Track" },
   { id: "study_guide", name: "Study guide", desc: "Key ideas and terms from your notes", icon: BookOpen, tone: "bg-lavender/15 text-lavender", group: "Study" },
   { id: "quiz", name: "Practice quiz", desc: "Test yourself, with an answer key", icon: HelpCircle, tone: "bg-lavender/15 text-lavender", group: "Study" },
+  { id: "partners", name: "Find study partners", desc: "Matched on courses, skills, free time and workload", icon: Handshake, tone: "bg-teal/15 text-teal", group: "Partners" },
+  { id: "sessionplan", name: "Plan a study session", desc: "Times when you and your partners are all free", icon: CalendarClock, tone: "bg-teal/15 text-teal", group: "Partners" },
   { id: "teammates", name: "Teammate ideas", desc: "Students who fill your team's gaps", icon: UserPlus, tone: "bg-blue/15 text-blue", group: "Team" },
 ];
 
@@ -272,7 +279,7 @@ function AssistantHub() {
 
       <div ref={panelRef} className="scroll-mt-24">
         <AnimatePresence mode="wait">
-          {active && teamId && (
+          {active && (teamId || PERSONAL_TOOLS.includes(active.id)) && (
             <motion.section
               key={`${active.id}-${teamId}`}
               initial={{ opacity: 0, y: 10 }}
@@ -288,11 +295,16 @@ function AssistantHub() {
                 <div>
                   <h3 className="font-display text-lg font-semibold">{active.name}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {active.desc} · {team?.name}
+                    {active.desc}
+                    {PERSONAL_TOOLS.includes(active.id) ? "" : ` · ${team?.name ?? ""}`}
                   </p>
                 </div>
               </div>
-              {active.id === "plan" ? (
+              {active.id === "partners" ? (
+                <PartnerMatchTool />
+              ) : active.id === "sessionplan" ? (
+                <SessionPlanTool />
+              ) : active.id === "plan" ? (
                 <PlanTool teamId={teamId} />
               ) : active.id === "teammates" ? (
                 <TeammatesTool teamId={teamId} />

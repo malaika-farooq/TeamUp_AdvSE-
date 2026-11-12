@@ -3,7 +3,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +62,42 @@ function SettingsPage() {
     },
     enabled: !!user,
   });
+
+  const skillsQuery = useQuery({
+    queryKey: ["my-skills", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("user_skills").select("skill_id, skills(name)").eq("user_id", user!.id);
+      return (data ?? []).map((r) => ({ id: r.skill_id, name: r.skills?.name ?? "" })).filter((r) => r.name);
+    },
+    enabled: !!user,
+  });
+  const [skillInput, setSkillInput] = useState("");
+
+  async function addSkills() {
+    if (!user) return;
+    const names = [...new Set(skillInput.split(",").map((x) => x.trim()).filter(Boolean))];
+    if (!names.length) return;
+    for (const name of names) {
+      const existing = await supabase.from("skills").select("id").ilike("name", name).maybeSingle();
+      let skillId = existing.data?.id;
+      if (!skillId) {
+        const ins = await supabase.from("skills").insert({ name }).select("id").single();
+        if (ins.error) return void toast.error(ins.error.message);
+        skillId = ins.data.id;
+      }
+      const { error } = await supabase.from("user_skills").upsert({ user_id: user.id, skill_id: skillId });
+      if (error) return void toast.error(error.message);
+    }
+    setSkillInput("");
+    skillsQuery.refetch();
+  }
+
+  async function removeSkill(skillId: string) {
+    if (!user) return;
+    const { error } = await supabase.from("user_skills").delete().eq("user_id", user.id).eq("skill_id", skillId);
+    if (error) return void toast.error(error.message);
+    skillsQuery.refetch();
+  }
 
   const [form, setForm] = useState({
     display_name: "",
@@ -141,6 +178,7 @@ function SettingsPage() {
       <Tabs defaultValue="profile" className="space-y-5">
         <TabsList className="flex flex-wrap justify-start">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="skills">Skills</TabsTrigger>
           <TabsTrigger value="availability">Availability</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
@@ -208,6 +246,42 @@ function SettingsPage() {
               {saving && <Loader2 className="mr-2 size-4 animate-spin" />}Save profile
             </Button>
           </form>
+        </TabsContent>
+
+        <TabsContent value="skills">
+          <div className="surface-card max-w-xl space-y-4 p-6">
+            <p className="text-sm text-muted-foreground">
+              Skills help TeamUp match you with teams. Separate several with commas.
+            </p>
+            <form
+              className="flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void addSkills();
+              }}
+            >
+              <Input
+                aria-label="Add skills"
+                value={skillInput}
+                placeholder="e.g. Python, SQL, UI Design"
+                onChange={(e) => setSkillInput(e.target.value)}
+              />
+              <Button type="submit">Add</Button>
+            </form>
+            <div className="flex flex-wrap gap-1.5">
+              {(skillsQuery.data ?? []).map((sk) => (
+                <Badge key={sk.id} variant="secondary" className="gap-1">
+                  {sk.name}
+                  <button type="button" aria-label={`Remove ${sk.name}`} onClick={() => removeSkill(sk.id)}>
+                    <X className="size-3" />
+                  </button>
+                </Badge>
+              ))}
+              {skillsQuery.data?.length === 0 && (
+                <p className="text-sm text-muted-foreground">No skills yet.</p>
+              )}
+            </div>
+          </div>
         </TabsContent>
 
         <TabsContent value="availability">

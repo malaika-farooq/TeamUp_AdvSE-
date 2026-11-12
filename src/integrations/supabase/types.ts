@@ -835,6 +835,65 @@ export type Database = {
         Args: { _team: string; _user: string }
         Returns: boolean
       }
+      send_partner_request: {
+        Args: { _to: string; _message?: string }
+        Returns: string
+      }
+      respond_partner_request: {
+        Args: { _request: string; _accept: boolean }
+        Returns: undefined
+      }
+      my_partner_requests: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          other_id: string
+          other_name: string
+          other_major: string | null
+          direction: string
+          status: string
+          message: string | null
+          created_at: string
+        }[]
+      }
+      partner_availability_overlap: {
+        Args: { _candidates: string[] }
+        Returns: { candidate_id: string; overlap_minutes: number }[]
+      }
+      candidate_workload: {
+        Args: { _candidates: string[] }
+        Returns: { candidate_id: string; open_tasks: number; due_soon: number; sessions_week: number }[]
+      }
+      group_free_windows: {
+        Args: { _users: string[] }
+        Returns: { weekday: number; start_minute: number; end_minute: number; free_count: number }[]
+      }
+      create_study_session: {
+        Args: { _title: string; _note: string; _starts: string; _ends: string; _invitees: string[] }
+        Returns: string
+      }
+      respond_study_session: {
+        Args: { _session: string; _accept: boolean }
+        Returns: undefined
+      }
+      my_study_sessions: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          title: string
+          note: string | null
+          starts_at: string
+          ends_at: string
+          creator_name: string
+          is_creator: boolean
+          my_status: string
+          attendees: { name: string; status: string }[]
+        }[]
+      }
+      candidate_window_minutes: {
+        Args: { _candidates: string[]; _windows: Json }
+        Returns: { candidate_id: string; window_minutes: number }[]
+      }
       candidate_availability_overlap: {
         Args: { _candidates: string[]; _team: string }
         Returns: {
