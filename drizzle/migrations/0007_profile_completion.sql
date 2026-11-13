@@ -16,39 +16,49 @@ VALUES ('team-files', 'team-files', false)
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. De-duplicate skills and courses that differ only by letter case / spacing ------------------
-CREATE TEMP TABLE _skill_map AS
-SELECT s.id AS old_id, k.keep_id
-FROM public.skills s
-JOIN (
-  SELECT lower(btrim(name)) AS key, (array_agg(id ORDER BY (name = lower(name)), (name <> btrim(name)), created_at, id))[1] AS keep_id
-  FROM public.skills GROUP BY 1
-) k ON k.key = lower(btrim(s.name))
-WHERE s.id <> k.keep_id;
+-- One DO block per table (no temporary tables: the Supabase SQL editor does not keep them between statements).
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT s.id AS old_id, k.keep_id
+    FROM public.skills s
+    JOIN (
+      SELECT lower(btrim(name)) AS key,
+             (array_agg(id ORDER BY (name = lower(name)), (name <> btrim(name)), created_at, id))[1] AS keep_id
+      FROM public.skills GROUP BY 1
+    ) k ON k.key = lower(btrim(s.name))
+    WHERE s.id <> k.keep_id
+  LOOP
+    DELETE FROM public.user_skills us
+     WHERE us.skill_id = r.old_id
+       AND EXISTS (SELECT 1 FROM public.user_skills x WHERE x.user_id = us.user_id AND x.skill_id = r.keep_id);
+    UPDATE public.user_skills SET skill_id = r.keep_id WHERE skill_id = r.old_id;
+    DELETE FROM public.skills WHERE id = r.old_id;
+  END LOOP;
+END $$;
 
-DELETE FROM public.user_skills us USING _skill_map m
-WHERE us.skill_id = m.old_id
-  AND EXISTS (SELECT 1 FROM public.user_skills x WHERE x.user_id = us.user_id AND x.skill_id = m.keep_id);
-UPDATE public.user_skills us SET skill_id = m.keep_id FROM _skill_map m WHERE us.skill_id = m.old_id;
-DELETE FROM public.skills WHERE id IN (SELECT old_id FROM _skill_map);
-DROP TABLE _skill_map;
-
-CREATE TEMP TABLE _course_map AS
-SELECT c.id AS old_id, k.keep_id
-FROM public.courses c
-JOIN (
-  SELECT lower(btrim(code)) AS code_key, lower(btrim(title)) AS title_key,
-         (array_agg(id ORDER BY (code = lower(code)), (code <> btrim(code)), created_at, id))[1] AS keep_id
-  FROM public.courses GROUP BY 1, 2
-) k ON k.code_key = lower(btrim(c.code)) AND k.title_key = lower(btrim(c.title))
-WHERE c.id <> k.keep_id;
-
-DELETE FROM public.user_courses uc USING _course_map m
-WHERE uc.course_id = m.old_id
-  AND EXISTS (SELECT 1 FROM public.user_courses x WHERE x.user_id = uc.user_id AND x.course_id = m.keep_id);
-UPDATE public.user_courses uc SET course_id = m.keep_id FROM _course_map m WHERE uc.course_id = m.old_id;
-UPDATE public.teams t SET course_id = m.keep_id FROM _course_map m WHERE t.course_id = m.old_id;
-DELETE FROM public.courses WHERE id IN (SELECT old_id FROM _course_map);
-DROP TABLE _course_map;
+DO $$
+DECLARE r record;
+BEGIN
+  FOR r IN
+    SELECT c.id AS old_id, k.keep_id
+    FROM public.courses c
+    JOIN (
+      SELECT lower(btrim(code)) AS code_key, lower(btrim(title)) AS title_key,
+             (array_agg(id ORDER BY (code = lower(code)), (code <> btrim(code)), created_at, id))[1] AS keep_id
+      FROM public.courses GROUP BY 1, 2
+    ) k ON k.code_key = lower(btrim(c.code)) AND k.title_key = lower(btrim(c.title))
+    WHERE c.id <> k.keep_id
+  LOOP
+    DELETE FROM public.user_courses uc
+     WHERE uc.course_id = r.old_id
+       AND EXISTS (SELECT 1 FROM public.user_courses x WHERE x.user_id = uc.user_id AND x.course_id = r.keep_id);
+    UPDATE public.user_courses SET course_id = r.keep_id WHERE course_id = r.old_id;
+    UPDATE public.teams SET course_id = r.keep_id WHERE course_id = r.old_id;
+    DELETE FROM public.courses WHERE id = r.old_id;
+  END LOOP;
+END $$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS skills_name_ci_key ON public.skills (lower(btrim(name)));
 CREATE UNIQUE INDEX IF NOT EXISTS courses_code_title_ci_key

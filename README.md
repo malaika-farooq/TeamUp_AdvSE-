@@ -37,6 +37,12 @@ Requirements: [Bun](https://bun.sh/) or Node.js 20+ with npm.
    cp .env.example .env
    ```
 
+   **Important:** `.env` is not stored in git, and `.env.example` only contains placeholders
+   (`https://your-project-ref.supabase.co`). You must replace the Supabase URL and publishable key with the
+   real ones for the project you want to use (ask the project owner, or copy them from Supabase → Project
+   Settings → API). If you leave the placeholders, sign-in fails with **"Failed to fetch"**. Restart
+   `bun run dev` after changing `.env`.
+
 3. Set up the database (see [Database setup](#database-setup)).
 4. Start the dev server and open <http://localhost:3000>:
 
@@ -142,6 +148,7 @@ These rules keep the app secure and predictable. Please keep to them when changi
 ## Troubleshooting
 
 - **Missing Supabase environment variables:** confirm `.env` sits next to `package.json`, then restart the dev server.
+- **"Failed to fetch" when signing in:** the browser can't reach Supabase. Check `VITE_SUPABASE_URL` and `SUPABASE_URL` in `.env` are the real project URL (not `your-project-ref`), that the project isn't paused in the Supabase dashboard, and that your network or an ad blocker isn't blocking `*.supabase.co`.
 - **Sign-up or sign-in fails:** check email confirmation and redirect settings above, and that migration 0000 has been run.
 - **A team's data is missing:** sign in as a member of that team; Row Level Security hides private records from everyone else.
 - **Route "not found" after adding a file:** restart the dev server so the route tree regenerates.
