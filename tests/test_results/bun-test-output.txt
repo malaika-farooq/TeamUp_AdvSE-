@@ -1,0 +1,24 @@
+bun test v1.4.4 (38afee6c8)
+
+tests/teammates-and-markdown.test.ts:
+(pass) Teammate ideas ranking > returns at most four candidates [3.68ms]
+(pass) Teammate ideas ranking > never suggests someone already on the team [0.68ms]
+(pass) Teammate ideas ranking > never suggests someone who isn't discoverable [0.02ms]
+(pass) Teammate ideas ranking > leaves out candidates with nothing in common
+(pass) Teammate ideas ranking > ranks a shared course above a single new skill [0.01ms]
+(pass) Teammate ideas ranking > fallback reason only mentions facts that exist [0.75ms]
+(pass) Progress summary Markdown > bold with spaces inside the stars becomes real bold [1.97ms]
+(pass) Progress summary Markdown > a heading glued to the line above gets its own line [0.02ms]
+(pass) wanted skills > matchWantedSkills is case-insensitive [0.98ms]
+(pass) wanted skills > requireWanted drops candidates without a wanted skill and boosts those with one [0.03ms]
+(pass) study partner ranking > workload levels [0.03ms]
+(pass) study partner ranking > a heavy workload ranks an otherwise equal student lower [0.06ms]
+(pass) study partner ranking > workload alone never creates a match [0.18ms]
+(pass) study partner ranking > session slots prefer more people free, then longer, capped at 90 minutes [0.84ms]
+(pass) study partner ranking > nextOccurrence is the next matching weekday in the future [2.51ms]
+(pass) study partner ranking > requested times filter out students who are not free then, and avoidHeavy drops heavy loads [0.30ms]
+
+ 16 pass
+ 0 fail
+ 24 expect() calls
+Ran 16 tests across 1 file. [49.00ms]
