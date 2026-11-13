@@ -20,6 +20,7 @@ import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authentic
 import { Route as AuthenticatedPartnersRouteImport } from './routes/_authenticated/partners'
 import { Route as AuthenticatedResourcesRouteImport } from './routes/_authenticated/resources'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedStudyPartnersRouteImport } from './routes/_authenticated/study-partners'
 import { Route as AuthenticatedTasksRouteImport } from './routes/_authenticated/tasks'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as AuthenticatedAssistantIndexRouteImport } from './routes/_authenticated/assistant.index'
@@ -83,6 +84,12 @@ const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedStudyPartnersRoute =
+  AuthenticatedStudyPartnersRouteImport.update({
+    id: '/study-partners',
+    path: '/study-partners',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedTasksRoute = AuthenticatedTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
@@ -138,6 +145,7 @@ export interface FileRoutesByFullPath {
   '/partners': typeof AuthenticatedPartnersRoute
   '/resources': typeof AuthenticatedResourcesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/study-partners': typeof AuthenticatedStudyPartnersRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/invite/$token': typeof InviteTokenRoute
   '/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
@@ -158,6 +166,7 @@ export interface FileRoutesByTo {
   '/partners': typeof AuthenticatedPartnersRoute
   '/resources': typeof AuthenticatedResourcesRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/study-partners': typeof AuthenticatedStudyPartnersRoute
   '/tasks': typeof AuthenticatedTasksRoute
   '/invite/$token': typeof InviteTokenRoute
   '/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
@@ -180,6 +189,7 @@ export interface FileRoutesById {
   '/_authenticated/partners': typeof AuthenticatedPartnersRoute
   '/_authenticated/resources': typeof AuthenticatedResourcesRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/study-partners': typeof AuthenticatedStudyPartnersRoute
   '/_authenticated/tasks': typeof AuthenticatedTasksRoute
   '/invite/$token': typeof InviteTokenRoute
   '/_authenticated/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
@@ -202,6 +212,7 @@ export interface FileRouteTypes {
     | '/partners'
     | '/resources'
     | '/settings'
+    | '/study-partners'
     | '/tasks'
     | '/invite/$token'
     | '/teams/$teamId'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/partners'
     | '/resources'
     | '/settings'
+    | '/study-partners'
     | '/tasks'
     | '/invite/$token'
     | '/teams/$teamId'
@@ -243,6 +255,7 @@ export interface FileRouteTypes {
     | '/_authenticated/partners'
     | '/_authenticated/resources'
     | '/_authenticated/settings'
+    | '/_authenticated/study-partners'
     | '/_authenticated/tasks'
     | '/invite/$token'
     | '/_authenticated/teams/$teamId'
@@ -342,6 +355,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/study-partners': {
+      id: '/_authenticated/study-partners'
+      path: '/study-partners'
+      fullPath: '/study-partners'
+      preLoaderRoute: typeof AuthenticatedStudyPartnersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tasks': {
       id: '/_authenticated/tasks'
       path: '/tasks'
@@ -409,6 +429,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPartnersRoute: typeof AuthenticatedPartnersRoute
   AuthenticatedResourcesRoute: typeof AuthenticatedResourcesRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedStudyPartnersRoute: typeof AuthenticatedStudyPartnersRoute
   AuthenticatedTasksRoute: typeof AuthenticatedTasksRoute
   AuthenticatedTeamsTeamIdRoute: typeof AuthenticatedTeamsTeamIdRoute
   AuthenticatedAssistantIndexRoute: typeof AuthenticatedAssistantIndexRoute
@@ -424,6 +445,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPartnersRoute: AuthenticatedPartnersRoute,
   AuthenticatedResourcesRoute: AuthenticatedResourcesRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedStudyPartnersRoute: AuthenticatedStudyPartnersRoute,
   AuthenticatedTasksRoute: AuthenticatedTasksRoute,
   AuthenticatedTeamsTeamIdRoute: AuthenticatedTeamsTeamIdRoute,
   AuthenticatedAssistantIndexRoute: AuthenticatedAssistantIndexRoute,
