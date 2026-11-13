@@ -1,0 +1,13 @@
+stateDiagram-v2
+    [*] --> ToDo
+    ToDo --> InProgress
+    InProgress --> InReview
+    InReview --> Done
+    InProgress --> ToDo
+    InReview --> InProgress
+    Done --> InReview
+
+    state "To Do" as ToDo
+    state "In Progress" as InProgress
+    state "In Review" as InReview
+    state "Done" as Done

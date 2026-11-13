@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -255,8 +255,6 @@ function TopBar() {
     navigate({ to: "/auth", search: { mode: "signin", redirect: undefined }, replace: true });
   }
 
-  const initials = (profile?.display_name ?? user?.email ?? "S").slice(0, 2).toUpperCase();
-
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border bg-background/85 px-4 backdrop-blur">
       <Sheet>
@@ -349,11 +347,11 @@ function TopBar() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Account menu">
-              <Avatar className="size-8">
-                <AvatarFallback className="bg-navy text-xs text-navy-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                name={profile?.display_name ?? user?.email ?? "Student"}
+                path={profile?.avatar_url}
+                className="size-8"
+              />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

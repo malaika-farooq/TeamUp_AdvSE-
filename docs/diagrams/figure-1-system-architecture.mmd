@@ -1,0 +1,75 @@
+%% Figure 1 - TeamUp final system architecture (deployed on Vercel)
+flowchart LR
+    U([Student<br/>browser])
+
+    subgraph TB1[Trust zone 1 - Untrusted client]
+        direction TB
+        UI[Client / UI<br/>React + TanStack Router<br/>shadcn/ui, react-query]
+        SBJS[supabase-js client<br/>publishable key only<br/>user JWT in browser]
+        UI --- SBJS
+    end
+
+    subgraph DEP[Deployment boundary - Vercel project, built with Nitro vercel preset]
+        direction TB
+        CDN[Vercel CDN<br/>static JS, CSS, images<br/>HTTPS]
+        subgraph TB2[Trust zone 2 - Vercel serverless function, holds secrets]
+            direction TB
+            SSR[SSR + file-based routes]
+            SF[Server functions<br/>ai.functions, partners.functions<br/>requireSupabaseAuth middleware]
+            RT[Streaming routes<br/>/api/ai/chat, /api/ai/write<br/>bearer token checked by route-auth]
+            CTX[ai-context<br/>membership check, records wrapped<br/>as untrusted data]
+            RANK[Ranking in code<br/>teammate-ranking, partner-ranking]
+            GW[AI gateway<br/>ai-gateway.ts]
+            SF --> CTX
+            RT --> CTX
+            SF --> RANK
+            SF --> GW
+            RT --> GW
+            CTX --> GW
+        end
+        ENV[(Vercel Environment Variables<br/>NVIDIA_API_KEY, NVIDIA_MODEL,<br/>SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY<br/>server-only, encrypted)]
+        ENV -. read at runtime .-> GW
+    end
+
+    subgraph TB3[Trust zone 3 - Supabase backend, managed service]
+        direction TB
+        AUTH[Supabase Auth<br/>email + password, Google<br/>issues JWT]
+        PG[(Postgres<br/>profiles, teams, team_members, tasks,<br/>sessions, resources, ai_threads, ai_messages,<br/>partner_requests, study_sessions)]
+        RLS{{Row Level Security<br/>+ security-definer RPCs<br/>aggregates only: overlap, workload,<br/>free windows}}
+        STO[Storage<br/>team-files bucket, avatars bucket<br/>storage policies]
+        PG --- RLS
+    end
+
+    subgraph EXT[Trust zone 4 - External services]
+        direction TB
+        NIM[NVIDIA NIM API<br/>integrate.api.nvidia.com<br/>nvidia/nemotron-3.5-lightning-30b-a3b]
+        GOO[Google OAuth]
+    end
+
+    U --> UI
+    UI -- 1a static assets over HTTPS --> CDN
+    UI -- 1b page request, SSR --> SSR
+    SBJS -- 2 sign up / sign in --> AUTH
+    AUTH -. OAuth redirect .-> GOO
+    AUTH -- 3 JWT session --> SBJS
+    SBJS -- 4 CRUD with user JWT, RLS applies --> RLS
+    SBJS -- 5 file upload and download --> STO
+    UI -- 6 server fn call, JWT attached --> SF
+    UI -- 7 streamed chat / write, Bearer JWT --> RT
+    SF -- 8 caller's own client, RLS in force --> RLS
+    CTX -- 9 read team records --> RLS
+    RT -- 10 chat route only: persist history, dedupe by client_id --> RLS
+    RT -. verify JWT claims .-> AUTH
+    GW -- 11 HTTPS + API key, prompt with records and short keys --> NIM
+    NIM -- 12 JSON reasons or streamed text --> GW
+    SF -- 13 results --> UI
+    RT -- 14 SSE tokens --> UI
+
+    classDef client fill:#e8f1ff,stroke:#3b82f6,color:#102a43;
+    classDef server fill:#eefaf3,stroke:#16a34a,color:#102a43;
+    classDef data fill:#fff7e6,stroke:#d97706,color:#102a43;
+    classDef ext fill:#f3e8ff,stroke:#7c3aed,color:#102a43;
+    class UI,SBJS client;
+    class CDN,SSR,SF,RT,CTX,RANK,GW,ENV server;
+    class AUTH,PG,RLS,STO data;
+    class NIM,GOO ext;

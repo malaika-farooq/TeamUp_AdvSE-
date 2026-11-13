@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { readableError } from "@/lib/ai-client";
+import { UserAvatar } from "@/components/app/profile/UserAvatar";
 
 export const Route = createFileRoute("/_authenticated/partners")({
   head: () => ({
@@ -22,7 +23,13 @@ export const Route = createFileRoute("/_authenticated/partners")({
 });
 
 function fmtWhen(d: Date) {
-  return d.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function PartnersPage() {
@@ -35,7 +42,9 @@ function PartnersPage() {
       return data ?? [];
     },
   });
-  const incoming = (requestsQuery.data ?? []).filter((r) => r.direction === "incoming" && r.status === "pending");
+  const incoming = (requestsQuery.data ?? []).filter(
+    (r) => r.direction === "incoming" && r.status === "pending",
+  );
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["partner-requests"] });
     void queryClient.invalidateQueries({ queryKey: ["study-sessions"] });
@@ -79,12 +88,17 @@ function PartnersPage() {
 
 /* --------------------------------- Requests --------------------------------- */
 
-type RequestsQuery = UseQueryResult<Database["public"]["Functions"]["my_partner_requests"]["Returns"]>;
+type RequestsQuery = UseQueryResult<
+  Database["public"]["Functions"]["my_partner_requests"]["Returns"]
+>;
 
 function RequestsTab({ query, onChanged }: { query: RequestsQuery; onChanged: () => void }) {
   const respond = useMutation({
     mutationFn: async ({ id, accept }: { id: string; accept: boolean }) => {
-      const { error } = await supabase.rpc("respond_partner_request", { _request: id, _accept: accept });
+      const { error } = await supabase.rpc("respond_partner_request", {
+        _request: id,
+        _accept: accept,
+      });
       if (error) throw error;
       return accept;
     },
@@ -96,16 +110,30 @@ function RequestsTab({ query, onChanged }: { query: RequestsQuery; onChanged: ()
   });
 
   if (query.isLoading) return <Loader2 className="size-5 animate-spin" />;
-  if (query.isError) return <ErrorState title="Couldn't load requests" message={readableError(query.error)} onRetry={() => query.refetch()} />;
+  if (query.isError)
+    return (
+      <ErrorState
+        title="Couldn't load requests"
+        message={readableError(query.error)}
+        onRetry={() => query.refetch()}
+      />
+    );
   const rows = query.data ?? [];
   if (!rows.length) {
-    return <EmptyState icon={Handshake} title="No requests yet" description="Requests you send or receive show up here." />;
+    return (
+      <EmptyState
+        icon={Handshake}
+        title="No requests yet"
+        description="Requests you send or receive show up here."
+      />
+    );
   }
   return (
     <ul className="grid gap-3 md:grid-cols-2">
       {rows.map((r) => (
         <li key={r.id} className="surface-card space-y-2 p-4">
           <div className="flex items-center gap-2">
+            <UserAvatar name={r.other_name} path={r.other_avatar} className="size-8" />
             <p className="font-semibold">{r.other_name}</p>
             <Badge variant="outline" className="ml-auto capitalize">
               {r.direction === "incoming" ? "Wants to study with you" : "You asked"} · {r.status}
@@ -115,11 +143,20 @@ function RequestsTab({ query, onChanged }: { query: RequestsQuery; onChanged: ()
           {r.message && <p className="text-sm">{r.message}</p>}
           {r.direction === "incoming" && r.status === "pending" && (
             <div className="flex gap-2">
-              <Button size="sm" disabled={respond.isPending} onClick={() => respond.mutate({ id: r.id, accept: true })}>
+              <Button
+                size="sm"
+                disabled={respond.isPending}
+                onClick={() => respond.mutate({ id: r.id, accept: true })}
+              >
                 <Check className="mr-1 size-4" />
                 Accept
               </Button>
-              <Button size="sm" variant="outline" disabled={respond.isPending} onClick={() => respond.mutate({ id: r.id, accept: false })}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={respond.isPending}
+                onClick={() => respond.mutate({ id: r.id, accept: false })}
+              >
                 <X className="mr-1 size-4" />
                 Decline
               </Button>
@@ -158,12 +195,12 @@ function PartnersTab({ query }: { query: RequestsQuery }) {
       <ul className="grid gap-3 md:grid-cols-2">
         {partners.map((r) => (
           <li key={r.id} className="surface-card flex items-center gap-3 p-4">
-            <span className="grid size-10 shrink-0 place-items-center rounded-full bg-navy font-display text-sm font-bold text-navy-foreground">
-              {r.other_name.slice(0, 2).toUpperCase()}
-            </span>
+            <UserAvatar name={r.other_name} path={r.other_avatar} className="size-10" />
             <div className="min-w-0">
               <p className="truncate font-semibold">{r.other_name}</p>
-              {r.other_major && <p className="truncate text-xs text-muted-foreground">{r.other_major}</p>}
+              {r.other_major && (
+                <p className="truncate text-xs text-muted-foreground">{r.other_major}</p>
+              )}
             </div>
           </li>
         ))}
@@ -191,7 +228,10 @@ function SessionsTab({ onChanged }: { onChanged: () => void }) {
   });
   const respond = useMutation({
     mutationFn: async ({ id, accept }: { id: string; accept: boolean }) => {
-      const { error } = await supabase.rpc("respond_study_session", { _session: id, _accept: accept });
+      const { error } = await supabase.rpc("respond_study_session", {
+        _session: id,
+        _accept: accept,
+      });
       if (error) throw error;
       return accept;
     },
@@ -204,7 +244,13 @@ function SessionsTab({ onChanged }: { onChanged: () => void }) {
 
   if (sessionsQuery.isLoading) return <Loader2 className="size-5 animate-spin" />;
   if (sessionsQuery.isError) {
-    return <ErrorState title="Couldn't load sessions" message={readableError(sessionsQuery.error)} onRetry={() => sessionsQuery.refetch()} />;
+    return (
+      <ErrorState
+        title="Couldn't load sessions"
+        message={readableError(sessionsQuery.error)}
+        onRetry={() => sessionsQuery.refetch()}
+      />
+    );
   }
   const rows = sessionsQuery.data ?? [];
   if (!rows.length) {
@@ -228,23 +274,40 @@ function SessionsTab({ onChanged }: { onChanged: () => void }) {
                 {s.is_creator ? "You organised this" : `Organised by ${s.creator_name}`}
               </p>
             </div>
-            <Badge variant="outline" className="ml-auto capitalize">{s.my_status}</Badge>
+            <Badge variant="outline" className="ml-auto capitalize">
+              {s.my_status}
+            </Badge>
           </div>
           {s.note && <p className="text-sm text-muted-foreground">{s.note}</p>}
           <div className="flex flex-wrap gap-1.5">
             {s.attendees.map((a) => (
-              <Badge key={a.name} variant="secondary" className="capitalize">
+              <Badge key={a.name} variant="secondary" className="gap-1.5 pl-1 capitalize">
+                <UserAvatar
+                  name={a.name}
+                  path={a.avatar}
+                  className="size-4"
+                  fallbackClassName="text-[8px]"
+                />
                 {a.name} · {a.status}
               </Badge>
             ))}
           </div>
           {s.my_status === "invited" && (
             <div className="flex gap-2">
-              <Button size="sm" disabled={respond.isPending} onClick={() => respond.mutate({ id: s.id, accept: true })}>
+              <Button
+                size="sm"
+                disabled={respond.isPending}
+                onClick={() => respond.mutate({ id: s.id, accept: true })}
+              >
                 <Check className="mr-1 size-4" />
                 Accept
               </Button>
-              <Button size="sm" variant="outline" disabled={respond.isPending} onClick={() => respond.mutate({ id: s.id, accept: false })}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={respond.isPending}
+                onClick={() => respond.mutate({ id: s.id, accept: false })}
+              >
                 <X className="mr-1 size-4" />
                 Decline
               </Button>

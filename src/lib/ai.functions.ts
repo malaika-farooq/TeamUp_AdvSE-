@@ -133,6 +133,7 @@ export type TeammateSuggestion = {
   id: string;
   rank: number;
   name: string;
+  avatar: string | null;
   major: string | null;
   university: string | null;
   sharedCourses: string[];
@@ -170,7 +171,7 @@ export const suggestTeammates = createServerFn({ method: "POST" })
       sb.rpc("team_member_skills", { _team: data.teamId }),
       sb
         .from("profiles")
-        .select("id, display_name, university, major, bio, discoverable")
+        .select("id, display_name, avatar_url, university, major, bio, discoverable")
         .eq("discoverable", true)
         .neq("id", context.userId)
         .limit(200),
@@ -186,6 +187,7 @@ export const suggestTeammates = createServerFn({ method: "POST" })
     const pool = everyone.filter((c) => !memberIds.includes(c.id));
     if (!pool.length) return { suggestions: [], empty: "all_members" };
     const poolIds = pool.map((p) => p.id);
+    const avatars = new Map(pool.map((p) => [p.id, p.avatar_url]));
 
     const [teamCoursesRes, poolCoursesRes, poolSkillsRes, overlapRes] = await Promise.all([
       sb.from("user_courses").select("course_id").in("user_id", memberIds),
@@ -292,6 +294,7 @@ export const suggestTeammates = createServerFn({ method: "POST" })
       id: c.id,
       rank: i + 1,
       name: c.name,
+      avatar: avatars.get(c.id) ?? null,
       major: c.major,
       university: c.university,
       sharedCourses: c.sharedCourses,

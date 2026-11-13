@@ -49,6 +49,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
+import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import { useAuth } from "@/lib/auth";
 import {
   STATUSES,
@@ -401,6 +402,11 @@ function TeamWorkspace() {
           <div className="surface-card divide-y divide-border">
             {members.map((m) => (
               <div key={m.user_id} className="flex flex-wrap items-center gap-3 p-4">
+                <UserAvatar
+                  name={m.profile?.display_name ?? "Teammate"}
+                  path={m.profile?.avatar_url}
+                  className="size-10"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium">{m.profile?.display_name ?? "Teammate"}</p>
                   <p className="text-xs text-muted-foreground">
@@ -529,10 +535,21 @@ function TeamWorkspace() {
                   transition={{ duration: 0.18, delay: i * 0.02 }}
                   className="p-4 text-sm"
                 >
-                  <p>
-                    {members.find((m) => m.user_id === a.actor_id)?.profile?.display_name ??
-                      "Someone"}{" "}
-                    {a.summary}
+                  <p className="flex items-center gap-2">
+                    <UserAvatar
+                      name={
+                        members.find((m) => m.user_id === a.actor_id)?.profile?.display_name ??
+                        "Someone"
+                      }
+                      path={members.find((m) => m.user_id === a.actor_id)?.profile?.avatar_url}
+                      className="size-6"
+                      fallbackClassName="text-[10px]"
+                    />
+                    <span>
+                      {members.find((m) => m.user_id === a.actor_id)?.profile?.display_name ??
+                        "Someone"}{" "}
+                      {a.summary}
+                    </span>
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(a.created_at).toLocaleString()}

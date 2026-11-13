@@ -1,0 +1,113 @@
+%% Figure 2 - TeamUp use-case / user-flow diagram
+flowchart LR
+    %% ---------- Actors ----------
+    S([Student / Team member])
+    O([Team owner / admin])
+    AI([AI Assistant<br/>NVIDIA NIM])
+
+    %% ---------- Sign in ----------
+    subgraph AUTH[1. Sign in]
+        direction TB
+        A1[Sign up or sign in<br/>email + password / Google]
+        A2[Confirm email]
+        A3[Onboarding<br/>university, major, skills, availability]
+        A4[Dashboard]
+        A1 --> A2 --> A3 --> A4
+    end
+
+    %% ---------- Teams ----------
+    subgraph TEAM[2. Create or join a team]
+        direction TB
+        T1[Create team<br/>public or private]
+        T2[Discover public teams]
+        T3[Send join request]
+        T4[Join by invite link]
+        T5[Approve / reject<br/>join requests]
+        T6[Invite members<br/>manage roles]
+    end
+
+    %% ---------- Tasks ----------
+    subgraph TASK[3. Plan tasks]
+        direction TB
+        K1[Create task<br/>priority, due date, assignee]
+        K2[Update status<br/>todo / in progress / in review / done]
+        K3[Track progress<br/>on Dashboard]
+    end
+
+    %% ---------- Meetings ----------
+    subgraph MEET[4. Schedule a meeting]
+        direction TB
+        M1[Add session to Calendar<br/>with team attendees]
+        M2[Accept / decline invite]
+    end
+
+    %% ---------- Resources ----------
+    subgraph RES[5. Share resources]
+        direction TB
+        R1[Add note, link or file<br/>to team Resources]
+        R2[Team members view<br/>and use resources]
+    end
+
+    %% ---------- AI ----------
+    subgraph ASSIST[6. Ask the AI Assistant]
+        direction TB
+        I1[Plan tasks / break down a task]
+        I2[Progress summary, weekly check-in,<br/>meeting agenda]
+        I3[Study guide / practice quiz]
+        I4[Find study partners<br/>courses, skills, free time, workload]
+        I5[Plan a study session<br/>shared free times]
+        I6[Teammate ideas]
+        I7[Chat with threads]
+    end
+
+    %% ---------- Study partners ----------
+    subgraph PART[Study Partners page]
+        direction TB
+        P1[Send request]
+        P2[Accept / decline request]
+        P3[Study session invite<br/>accept / decline]
+    end
+
+    %% ---------- Student flow ----------
+    S --> A1
+    A4 --> T1
+    A4 --> T2
+    T2 --> T3
+    A4 --> T4
+    A4 --> K1
+    K1 --> K2 --> K3
+    A4 --> M1
+    M1 --> M2
+    A4 --> R1
+    R1 --> R2
+    A4 --> I7
+    S --> I1 & I2 & I3 & I4 & I5 & I6
+
+    %% ---------- Owner / admin flow ----------
+    O -. is also a student .-> S
+    O --> T1
+    O --> T5
+    O --> T6
+    O --> K1
+    O --> M1
+    T3 --> T5
+    T6 --> T4
+
+    %% ---------- AI actor ----------
+    I1 & I2 & I3 & I6 & I7 --- AI
+    I4 --> AI
+    AI -- reasons only, ranking done in code --> I4
+    AI --> I5
+    I1 -- suggested tasks --> K1
+    I2 -- agenda --> M1
+    I4 --> P1
+    I5 --> P3
+    P1 --> P2
+
+    %% ---------- Styling ----------
+    classDef actor fill:#1e3a5f,stroke:#1e3a5f,color:#fff;
+    classDef ai fill:#7c5cff,stroke:#5b3fe0,color:#fff;
+    classDef step fill:#f4f7fb,stroke:#9fb3c8,color:#102a43;
+    class S,O actor;
+    class AI ai;
+    class A1,A2,A3,A4,T1,T2,T3,T4,T5,T6,K1,K2,K3,M1,M2,R1,R2,I1,I2,I3,I4,I5,I6,I7,P1,P2,P3 step;

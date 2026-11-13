@@ -1,0 +1,6 @@
+stateDiagram-v2
+    [*] --> Pending : student requests to join
+    Pending --> Approved : owner or admin approves
+    Pending --> Rejected : owner or admin declines
+    Approved --> [*]
+    Rejected --> [*]

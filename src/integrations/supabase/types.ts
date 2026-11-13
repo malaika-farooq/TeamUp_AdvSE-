@@ -854,7 +854,20 @@ export type Database = {
           status: string
           message: string | null
           created_at: string
+          other_avatar: string | null
         }[]
+      }
+      set_my_courses: {
+        Args: { _courses: Json }
+        Returns: number
+      }
+      set_my_skills: {
+        Args: { _skills: Json }
+        Returns: number
+      }
+      set_my_availability: {
+        Args: { _slots: Json }
+        Returns: number
       }
       partner_availability_overlap: {
         Args: { _candidates: string[] }
@@ -887,7 +900,7 @@ export type Database = {
           creator_name: string
           is_creator: boolean
           my_status: string
-          attendees: { name: string; status: string }[]
+          attendees: { name: string; status: string; avatar?: string | null }[]
         }[]
       }
       candidate_window_minutes: {

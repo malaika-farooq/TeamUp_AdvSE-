@@ -49,6 +49,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { EmptyState } from "@/components/app/states";
+import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import {
   PRIORITIES,
   STATUSES,
@@ -116,6 +117,8 @@ export function TaskBoard({
   const members = membersQuery.data ?? [];
   const nameOf = (id: string | null) =>
     id ? (members.find((m) => m.user_id === id)?.profile?.display_name ?? "Teammate") : "Unassigned";
+  const avatarOf = (id: string | null) =>
+    id ? (members.find((m) => m.user_id === id)?.profile?.avatar_url ?? null) : null;
 
   const filtered = useMemo(() => {
     const now = Date.now();
@@ -264,6 +267,7 @@ export function TaskBoard({
                 tasks={filtered.filter((t) => t.status === col.key)}
                 onOpen={setOpenTask}
                 nameOf={nameOf}
+                avatarOf={avatarOf}
                 onStatusChange={changeStatus}
               />
             ))}
@@ -280,8 +284,18 @@ export function TaskBoard({
                 <div className="min-w-0">
                   <p className="truncate font-medium">{t.title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {nameOf(t.assignee_id)} ·{" "}
-                    {t.due_date ? new Date(t.due_date).toLocaleDateString() : "No due date"}
+                    <span className="inline-flex items-center gap-1.5 align-middle">
+                      {t.assignee_id && (
+                        <UserAvatar
+                          name={nameOf(t.assignee_id)}
+                          path={avatarOf(t.assignee_id)}
+                          className="size-4"
+                          fallbackClassName="text-[8px]"
+                        />
+                      )}
+                      {nameOf(t.assignee_id)}
+                    </span>{" "}
+                    · {t.due_date ? new Date(t.due_date).toLocaleDateString() : "No due date"}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -369,6 +383,7 @@ function Column({
   tasks,
   onOpen,
   nameOf,
+  avatarOf,
   onStatusChange,
 }: {
   status: TaskStatus;
@@ -376,6 +391,7 @@ function Column({
   tasks: Task[];
   onOpen: (t: Task) => void;
   nameOf: (id: string | null) => string;
+  avatarOf: (id: string | null) => string | null;
   onStatusChange: (task: Task, status: TaskStatus) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
@@ -401,6 +417,7 @@ function Column({
               task={t}
               onOpen={onOpen}
               nameOf={nameOf}
+              avatarOf={avatarOf}
               onStatusChange={onStatusChange}
             />
           ))}
@@ -419,11 +436,13 @@ function TaskCard({
   task,
   onOpen,
   nameOf,
+  avatarOf,
   onStatusChange,
 }: {
   task: Task;
   onOpen: (t: Task) => void;
   nameOf: (id: string | null) => string;
+  avatarOf: (id: string | null) => string | null;
   onStatusChange: (task: Task, status: TaskStatus) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
@@ -456,7 +475,17 @@ function TaskCard({
             </Badge>
           )}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">{nameOf(task.assignee_id)}</p>
+        <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+          {task.assignee_id && (
+            <UserAvatar
+              name={nameOf(task.assignee_id)}
+              path={avatarOf(task.assignee_id)}
+              className="size-5"
+              fallbackClassName="text-[9px]"
+            />
+          )}
+          {nameOf(task.assignee_id)}
+        </p>
       </button>
       <div className="mt-2" onPointerDown={(e) => e.stopPropagation()}>
         <Select value={task.status} onValueChange={(v) => onStatusChange(task, v as TaskStatus)}>
@@ -830,7 +859,13 @@ export function TaskPanel({
               {(detail.data?.comments ?? []).map((c) => (
                 <li key={c.id} className="rounded-lg border border-border p-3 text-sm">
                   <p>{c.body}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <UserAvatar
+                      name={nameOf(c.author_id)}
+                      path={members.find((m) => m.user_id === c.author_id)?.profile?.avatar_url}
+                      className="size-5"
+                      fallbackClassName="text-[9px]"
+                    />
                     {nameOf(c.author_id)} · {new Date(c.created_at).toLocaleString()}
                   </p>
                 </li>

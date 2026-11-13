@@ -77,14 +77,20 @@ export function rankPartners<T extends PartnerFacts>(
 
 /** Plain, fact-only reason used when the AI leaves one out. Never mentions a heavy workload or gaps. */
 export function partnerReason(
-  p: Pick<PartnerFacts, "sharedCourses" | "newSkills" | "wantedSkills" | "overlapMinutes" | "windowMinutes"> & {
+  p: Pick<
+    PartnerFacts,
+    "sharedCourses" | "newSkills" | "wantedSkills" | "overlapMinutes" | "windowMinutes"
+  > & {
     level: WorkloadLevel;
   },
 ): string {
   const parts: string[] = [];
-  if (p.wantedSkills.length) parts.push(`has the ${p.wantedSkills.slice(0, 3).join(", ")} skills you asked for`);
-  if ((p.windowMinutes ?? 0) >= MIN_WINDOW_MINUTES) parts.push("is free at the times you asked for");
-  if (p.sharedCourses.length) parts.push(`takes ${p.sharedCourses.slice(0, 2).join(" and ")} with you`);
+  if (p.wantedSkills.length)
+    parts.push(`has the ${p.wantedSkills.slice(0, 3).join(", ")} skills you asked for`);
+  if ((p.windowMinutes ?? 0) >= MIN_WINDOW_MINUTES)
+    parts.push("is free at the times you asked for");
+  if (p.sharedCourses.length)
+    parts.push(`takes ${p.sharedCourses.slice(0, 2).join(" and ")} with you`);
   if (p.newSkills.length) parts.push(`adds ${p.newSkills.slice(0, 3).join(", ")}`);
   const h = Math.round((p.overlapMinutes / 60) * 2) / 2;
   if (h > 0) parts.push(`shares about ${h} h/week of free time`);
@@ -94,11 +100,24 @@ export function partnerReason(
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
 }
 
-export type FreeWindow = { weekday: number; start_minute: number; end_minute: number; free_count: number };
-export type SessionSlot = { weekday: number; startMinute: number; endMinute: number; freeCount: number };
+export type FreeWindow = {
+  weekday: number;
+  start_minute: number;
+  end_minute: number;
+  free_count: number;
+};
+export type SessionSlot = {
+  weekday: number;
+  startMinute: number;
+  endMinute: number;
+  freeCount: number;
+};
 
 /** Best windows first: more people free, then longer. Each proposal is at most 90 minutes. */
-export function pickSessionSlots(windows: FreeWindow[], limit = MAX_SESSION_PROPOSALS): SessionSlot[] {
+export function pickSessionSlots(
+  windows: FreeWindow[],
+  limit = MAX_SESSION_PROPOSALS,
+): SessionSlot[] {
   return windows
     .filter((w) => w.end_minute - w.start_minute >= MIN_SESSION_MINUTES)
     .sort(

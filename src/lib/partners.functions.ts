@@ -18,7 +18,10 @@ const SETUP_ERROR =
 
 /** A missing database function means the migrations haven't been applied; say so instead of a vague error. */
 function loadError(err: { code?: string; message?: string } | null | undefined): Error {
-  const missing = err?.code === "PGRST202" || err?.code === "42883" || /Could not find the function|does not exist/i.test(err?.message ?? "");
+  const missing =
+    err?.code === "PGRST202" ||
+    err?.code === "42883" ||
+    /Could not find the function|does not exist/i.test(err?.message ?? "");
   return new Error(missing ? SETUP_ERROR : LOAD_ERROR);
 }
 
@@ -26,6 +29,7 @@ export type PartnerSuggestion = {
   id: string;
   rank: number;
   name: string;
+  avatar: string | null;
   major: string | null;
   university: string | null;
   sharedCourses: string[];
@@ -73,7 +77,7 @@ export const suggestStudyPartners = createServerFn({ method: "POST" })
       sb.rpc("my_partner_requests"),
       sb
         .from("profiles")
-        .select("id, display_name, university, major, discoverable")
+        .select("id, display_name, avatar_url, university, major, discoverable")
         .eq("discoverable", true)
         .neq("id", me)
         .limit(200),
@@ -81,7 +85,8 @@ export const suggestStudyPartners = createServerFn({ method: "POST" })
       sb.from("user_skills").select("level, skills(name)").eq("user_id", me),
     ]);
     if (requestsRes.error || candidatesRes.error || myCoursesRes.error || mySkillsRes.error) {
-      const err = requestsRes.error ?? candidatesRes.error ?? myCoursesRes.error ?? mySkillsRes.error;
+      const err =
+        requestsRes.error ?? candidatesRes.error ?? myCoursesRes.error ?? mySkillsRes.error;
       console.error("[partners] load failed", err);
       throw loadError(err);
     }
@@ -90,21 +95,41 @@ export const suggestStudyPartners = createServerFn({ method: "POST" })
     const pool = (candidatesRes.data ?? []).filter((c) => !engaged.has(c.id));
     if (!pool.length) return { suggestions: [], empty: "none_discoverable" };
     const poolIds = pool.map((p) => p.id);
+    const avatars = new Map(pool.map((p) => [p.id, p.avatar_url]));
 
     const myCourseIds = new Set((myCoursesRes.data ?? []).map((c) => c.course_id));
-    const mySkills = new Set((mySkillsRes.data ?? []).flatMap((s) => (s.skills ? [s.skills.name.toLowerCase()] : [])));
+    const mySkills = new Set(
+      (mySkillsRes.data ?? []).flatMap((s) => (s.skills ? [s.skills.name.toLowerCase()] : [])),
+    );
 
     const [poolCoursesRes, poolSkillsRes, overlapRes, loadRes, windowRes] = await Promise.all([
-      sb.from("user_courses").select("user_id, course_id, courses(code, title)").in("user_id", poolIds),
+      sb
+        .from("user_courses")
+        .select("user_id, course_id, courses(code, title)")
+        .in("user_id", poolIds),
       sb.from("user_skills").select("user_id, skills(name)").in("user_id", poolIds),
       sb.rpc("partner_availability_overlap", { _candidates: poolIds }),
       sb.rpc("candidate_workload", { _candidates: poolIds }),
       windows.length
         ? sb.rpc("candidate_window_minutes", { _candidates: poolIds, _windows: windows })
-        : Promise.resolve({ data: [] as { candidate_id: string; window_minutes: number }[], error: null }),
+        : Promise.resolve({
+            data: [] as { candidate_id: string; window_minutes: number }[],
+            error: null,
+          }),
     ]);
-    if (poolCoursesRes.error || poolSkillsRes.error || overlapRes.error || loadRes.error || windowRes.error) {
-      const err = poolCoursesRes.error ?? poolSkillsRes.error ?? overlapRes.error ?? loadRes.error ?? windowRes.error;
+    if (
+      poolCoursesRes.error ||
+      poolSkillsRes.error ||
+      overlapRes.error ||
+      loadRes.error ||
+      windowRes.error
+    ) {
+      const err =
+        poolCoursesRes.error ??
+        poolSkillsRes.error ??
+        overlapRes.error ??
+        loadRes.error ??
+        windowRes.error;
       console.error("[partners] facts failed", err);
       throw loadError(err);
     }
@@ -125,8 +150,10 @@ export const suggestStudyPartners = createServerFn({ method: "POST" })
             .map((c) => (c.courses ? `${c.courses.code} ${c.courses.title}` : "a shared course")),
           newSkills: [...new Set(theirSkills.filter((s) => !mySkills.has(s.toLowerCase())))],
           wantedSkills: matchWantedSkills(theirSkills, wanted),
-          overlapMinutes: (overlapRes.data ?? []).find((o) => o.candidate_id === p.id)?.overlap_minutes ?? 0,
-          windowMinutes: (windowRes.data ?? []).find((o) => o.candidate_id === p.id)?.window_minutes ?? 0,
+          overlapMinutes:
+            (overlapRes.data ?? []).find((o) => o.candidate_id === p.id)?.overlap_minutes ?? 0,
+          windowMinutes:
+            (windowRes.data ?? []).find((o) => o.candidate_id === p.id)?.window_minutes ?? 0,
           workload: {
             openTasks: load?.open_tasks ?? 0,
             dueSoon: load?.due_soon ?? 0,
@@ -135,16 +162,24 @@ export const suggestStudyPartners = createServerFn({ method: "POST" })
         };
       }),
       MAX_PARTNER_SUGGESTIONS,
-      { requireWanted: wanted.length > 0, requireWindow: windows.length > 0, avoidHeavy: data.avoidHeavy === true },
+      {
+        requireWanted: wanted.length > 0,
+        requireWindow: windows.length > 0,
+        avoidHeavy: data.avoidHeavy === true,
+      },
     );
     if (!ranked.length) {
-      return { suggestions: [], empty: !myCourseIds.size && !mySkills.size ? "profile_empty" : "no_matches" };
+      return {
+        suggestions: [],
+        empty: !myCourseIds.size && !mySkills.size ? "profile_empty" : "no_matches",
+      };
     }
 
     const keyed = ranked.map((p, i) => ({ key: `c${i + 1}`, p }));
     const facts = (p: (typeof ranked)[number]) => {
       const f: string[] = [];
-      if (p.wantedSkills.length) f.push(`has the skills you asked for: ${p.wantedSkills.join(", ")}`);
+      if (p.wantedSkills.length)
+        f.push(`has the skills you asked for: ${p.wantedSkills.join(", ")}`);
       if (p.windowMinutes >= 60) f.push("free at the times you asked for");
       if (p.sharedCourses.length) f.push(`shared courses: ${p.sharedCourses.join(", ")}`);
       if (p.newSkills.length) f.push(`skills you don't have: ${p.newSkills.join(", ")}`);
@@ -199,6 +234,7 @@ export const suggestStudyPartners = createServerFn({ method: "POST" })
         id: p.id,
         rank: i + 1,
         name: p.name,
+        avatar: avatars.get(p.id) ?? null,
         major: p.major,
         university: p.university,
         sharedCourses: p.sharedCourses,
@@ -229,7 +265,10 @@ export const proposeStudySessions = createServerFn({ method: "POST" })
     if (!slots.length) return { proposals: [] };
 
     const [coursesRes, namesRes] = await Promise.all([
-      sb.from("user_courses").select("user_id, courses(code, title)").in("user_id", [context.userId, ...partnerIds]),
+      sb
+        .from("user_courses")
+        .select("user_id, courses(code, title)")
+        .in("user_id", [context.userId, ...partnerIds]),
       sb.rpc("my_partner_requests"),
     ]);
     // Courses everyone in the group takes; used only to give the session a sensible title and agenda.
@@ -241,13 +280,18 @@ export const proposeStudySessions = createServerFn({ method: "POST" })
       byUser.set(r.user_id, set);
     }
     const everyone = [context.userId, ...partnerIds];
-    const shared = [...(byUser.get(context.userId) ?? [])].filter((c) => everyone.every((u) => byUser.get(u)?.has(c)));
-    const names = (namesRes.data ?? []).filter((r) => partnerIds.includes(r.other_id)).map((r) => r.other_name);
+    const shared = [...(byUser.get(context.userId) ?? [])].filter((c) =>
+      everyone.every((u) => byUser.get(u)?.has(c)),
+    );
+    const names = (namesRes.data ?? [])
+      .filter((r) => partnerIds.includes(r.other_id))
+      .map((r) => r.other_name);
 
     const fallback = (): { title: string; agenda: string }[] =>
       slots.map(() => ({
         title: shared[0] ? `${shared[0]} study session` : "Study session",
-        agenda: "10 min: set goals · 60 min: work through problems together · 20 min: recap and next steps",
+        agenda:
+          "10 min: set goals · 60 min: work through problems together · 20 min: recap and next steps",
       }));
 
     let texts = fallback();
@@ -291,5 +335,11 @@ export const proposeStudySessions = createServerFn({ method: "POST" })
       console.error("[partners] session text failed", e);
     }
 
-    return { proposals: slots.map((s, i) => ({ ...s, title: texts[i]?.title ?? "Study session", agenda: texts[i]?.agenda ?? "" })) };
+    return {
+      proposals: slots.map((s, i) => ({
+        ...s,
+        title: texts[i]?.title ?? "Study session",
+        agenda: texts[i]?.agenda ?? "",
+      })),
+    };
   });

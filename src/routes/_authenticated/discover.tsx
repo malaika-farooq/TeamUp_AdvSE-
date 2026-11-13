@@ -9,7 +9,7 @@ import { CardSkeletons, EmptyState } from "@/components/app/states";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
@@ -59,7 +59,7 @@ function Discover() {
       const [profiles, userSkills, skills, userCourses, courses] = await Promise.all([
         supabase
           .from("profiles")
-          .select("id, display_name, university, major, bio, timezone, is_sample")
+          .select("id, display_name, avatar_url, university, major, bio, timezone, is_sample")
           .eq("discoverable", true),
         supabase.from("user_skills").select("user_id, skill_id, level"),
         supabase.from("skills").select("id, name"),
@@ -174,16 +174,7 @@ function Discover() {
                   className="surface-card hover-lift p-5"
                 >
                   <div className="flex items-start gap-3">
-                    <Avatar className="size-10">
-                      <AvatarFallback>
-                        {p.display_name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)
-                          .toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
+                    <UserAvatar name={p.display_name} path={p.avatar_url} className="size-10" />
                     <div className="min-w-0">
                       <h3 className="truncate font-semibold">{p.display_name}</h3>
                       <p className="truncate text-xs text-muted-foreground">

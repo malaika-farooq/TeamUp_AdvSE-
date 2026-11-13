@@ -1,0 +1,44 @@
+flowchart TD
+    LAND["Landing page"] --> AUTH["Sign in or Sign up"]
+    AUTH -- forgot password --> RESET["Reset password"]
+    RESET --> AUTH
+    INV["Invite link"] --> AUTH
+    AUTH -- new account --> ONB["Onboarding: profile, courses, skills, availability"]
+    AUTH -- existing account --> DASH
+    ONB --> DASH
+
+    subgraph SHELL["Signed-in app - sidebar navigation"]
+        DASH["Dashboard"]
+        TEAMS["My Teams"]
+        DISC["Discover"]
+        SP["Study Partners"]
+        TASKS["Tasks"]
+        CAL["Calendar"]
+        RES["Resources"]
+        AI["AI Assistant"]
+        SET["Settings"]
+    end
+
+    DASH -- Create Task --> TASKS
+    DASH -- Schedule Session --> CAL
+    DASH -- Add Resource --> RES
+    DASH -- Ask the AI assistant --> AI
+    DASH -- Create or open team --> TEAMS
+    DASH -- Find teams --> DISC
+
+    TEAMS --> TEAM["Team workspace"]
+    DISC -- Request to join --> TEAM
+    TEAM --> T1["Overview"]
+    TEAM --> T2["Task Board"]
+    TEAM --> T3["Team Calendar"]
+    TEAM --> T4["Team Resources"]
+    TEAM --> T5["Members"]
+    TEAM --> T6["Activity"]
+
+    AI --> CHAT["Chat thread"]
+    AI --> TOOLS["AI tools: plan, breakdown, summary, check-in, agenda, study guide, quiz, teammate ideas, find partners, plan study session"]
+    TOOLS -- partners --> SP
+    SP --> SP1["Requests"]
+    SP --> SP2["My partners"]
+    SP --> SP3["Study sessions"]
+    SET --> SK["Profile and Skills"]

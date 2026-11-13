@@ -3,7 +3,17 @@ import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { CalendarClock, Check, Clock, GraduationCap, Handshake, Loader2, Users, Wand2, X } from "lucide-react";
+import {
+  CalendarClock,
+  Check,
+  Clock,
+  GraduationCap,
+  Handshake,
+  Loader2,
+  Users,
+  Wand2,
+  X,
+} from "lucide-react";
 import { EmptyState, ErrorState } from "@/components/app/states";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,15 +30,18 @@ import {
   type SessionProposal,
 } from "@/lib/partners.functions";
 import { cn } from "@/lib/utils";
+import { UserAvatar } from "@/components/app/profile/UserAvatar";
 
 const EMPTY: Record<NonNullable<PartnerResult["empty"]>, { title: string; description: string }> = {
   none_discoverable: {
     title: "No new students to suggest",
-    description: "Everyone discoverable is already a partner or has a pending request with you. Check back later.",
+    description:
+      "Everyone discoverable is already a partner or has a pending request with you. Check back later.",
   },
   profile_empty: {
     title: "Add your courses and skills first",
-    description: "Matching compares your courses, skills and free time with other students. Add some in Settings.",
+    description:
+      "Matching compares your courses, skills and free time with other students. Add some in Settings.",
   },
   no_matches: {
     title: "Nobody matches yet",
@@ -44,7 +57,13 @@ const LOAD_TONE: Record<WorkloadLevel, string> = {
 };
 
 function fmtWhen(d: Date) {
-  return d.toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleString([], {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 /* ----------------------------- Find study partners ----------------------------- */
@@ -69,7 +88,10 @@ export function PartnerMatchTool() {
     setTimes((t) => (t.includes(key) ? t.filter((x) => x !== key) : [...t, key]));
 
   function addWanted() {
-    const parts = input.split(",").map((x) => x.trim()).filter(Boolean);
+    const parts = input
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
     if (!parts.length) return;
     setWanted((w) => [...new Set([...w, ...parts])].slice(0, 8));
     setInput("");
@@ -93,7 +115,8 @@ export function PartnerMatchTool() {
           avoidHeavy: avoidHeavy || undefined,
         },
       });
-      if (!res || !Array.isArray(res.suggestions)) throw new Error("The assistant returned an unreadable answer.");
+      if (!res || !Array.isArray(res.suggestions))
+        throw new Error("The assistant returned an unreadable answer.");
       setResult(res);
     } catch (e) {
       setError(readableError(e));
@@ -118,8 +141,9 @@ export function PartnerMatchTool() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Ranked by shared courses, skills you don't have, overlapping free hours and how busy each student is this
-        week. Only students who chose to be discoverable are considered, and nobody's schedule or task list is shown.
+        Ranked by shared courses, skills you don't have, overlapping free hours and how busy each
+        student is this week. Only students who chose to be discoverable are considered, and
+        nobody's schedule or task list is shown.
       </p>
       <div className="space-y-2">
         <Label htmlFor="pw">What kind of partner do you want? (optional)</Label>
@@ -145,7 +169,11 @@ export function PartnerMatchTool() {
             {wanted.map((w) => (
               <Badge key={w} variant="secondary" className="gap-1">
                 {w}
-                <button type="button" aria-label={`Remove ${w}`} onClick={() => setWanted((x) => x.filter((y) => y !== w))}>
+                <button
+                  type="button"
+                  aria-label={`Remove ${w}`}
+                  onClick={() => setWanted((x) => x.filter((y) => y !== w))}
+                >
                   <X className="size-3" />
                 </button>
               </Badge>
@@ -200,14 +228,22 @@ export function PartnerMatchTool() {
             : "Leave empty to match on your saved weekly availability instead."}
         </p>
         <div className="flex items-center gap-2">
-          <Checkbox id="light" checked={avoidHeavy} onCheckedChange={(v) => setAvoidHeavy(v === true)} />
+          <Checkbox
+            id="light"
+            checked={avoidHeavy}
+            onCheckedChange={(v) => setAvoidHeavy(v === true)}
+          />
           <Label htmlFor="light" className="cursor-pointer text-sm">
             Only students who aren't overloaded right now
           </Label>
         </div>
       </div>
       <Button onClick={run} disabled={busy}>
-        {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Wand2 className="mr-2 size-4" />}
+        {busy ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <Wand2 className="mr-2 size-4" />
+        )}
         {result ? "Find again" : "Find study partners"}
       </Button>
       {error && <ErrorState title="Couldn't find partners" message={error} onRetry={run} />}
@@ -225,15 +261,16 @@ export function PartnerMatchTool() {
           }
         />
       )}
-      <ol className="grid gap-3 md:grid-cols-2" aria-label="Suggested study partners, best match first">
+      <ol
+        className="grid gap-3 md:grid-cols-2"
+        aria-label="Suggested study partners, best match first"
+      >
         {people
           .filter((p) => !dismissed[p.id])
           .map((p) => (
             <li key={p.id} className="surface-card space-y-3 p-4">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-navy font-display text-sm font-bold text-navy-foreground">
-                  {p.name.slice(0, 2).toUpperCase()}
-                </span>
+                <UserAvatar name={p.name} path={p.avatar} className="size-10" />
                 <div className="min-w-0">
                   <p className="truncate font-semibold">
                     {p.rank}. {p.name}
@@ -254,7 +291,11 @@ export function PartnerMatchTool() {
                   </Badge>
                 ))}
                 {p.sharedCourses.map((c) => (
-                  <Badge key={c} variant="outline" className="border-teal/40 bg-teal/10 text-foreground">
+                  <Badge
+                    key={c}
+                    variant="outline"
+                    className="border-teal/40 bg-teal/10 text-foreground"
+                  >
                     <GraduationCap className="mr-1 size-3" />
                     {c}
                   </Badge>
@@ -262,7 +303,11 @@ export function PartnerMatchTool() {
                 {p.newSkills
                   .filter((s) => !p.wantedSkills.includes(s))
                   .map((s) => (
-                    <Badge key={s} variant="outline" className="border-lavender/40 bg-lavender/10 text-foreground">
+                    <Badge
+                      key={s}
+                      variant="outline"
+                      className="border-lavender/40 bg-lavender/10 text-foreground"
+                    >
                       + {s}
                     </Badge>
                   ))}
@@ -281,10 +326,18 @@ export function PartnerMatchTool() {
               ) : (
                 <div className="flex gap-2">
                   <Button size="sm" disabled={pending !== null} onClick={() => send(p.id, p.name)}>
-                    {pending === p.id ? <Loader2 className="mr-1 size-4 animate-spin" /> : <Handshake className="mr-1 size-4" />}
+                    {pending === p.id ? (
+                      <Loader2 className="mr-1 size-4 animate-spin" />
+                    ) : (
+                      <Handshake className="mr-1 size-4" />
+                    )}
                     Send request
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setDismissed((d) => ({ ...d, [p.id]: true }))}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDismissed((d) => ({ ...d, [p.id]: true }))}
+                  >
                     Not now
                   </Button>
                 </div>
@@ -295,7 +348,6 @@ export function PartnerMatchTool() {
     </div>
   );
 }
-
 
 /* ------------------------------ Plan a study session ------------------------------ */
 
@@ -378,8 +430,8 @@ export function SessionPlanTool() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Choose up to 5 partners. The assistant finds times when you are all free, based on everyone's saved weekly
-        availability, and writes a title and agenda for each option.
+        Choose up to 5 partners. The assistant finds times when you are all free, based on
+        everyone's saved weekly availability, and writes a title and agenda for each option.
       </p>
       <ul className="grid gap-2 md:grid-cols-2">
         {partners.map((r) => (
@@ -388,18 +440,29 @@ export function SessionPlanTool() {
               id={`sp-${r.other_id}`}
               checked={selected.includes(r.other_id)}
               onCheckedChange={(v) =>
-                setSelected((s) => (v ? [...s, r.other_id].slice(0, 5) : s.filter((x) => x !== r.other_id)))
+                setSelected((s) =>
+                  v ? [...s, r.other_id].slice(0, 5) : s.filter((x) => x !== r.other_id),
+                )
               }
             />
             <Label htmlFor={`sp-${r.other_id}`} className="flex-1 cursor-pointer">
-              <span className="font-semibold">{r.other_name}</span>
-              {r.other_major && <span className="ml-2 text-xs text-muted-foreground">{r.other_major}</span>}
+              <span className="inline-flex items-center gap-2 align-middle">
+                <UserAvatar name={r.other_name} path={r.other_avatar} className="size-7" />
+                <span className="font-semibold">{r.other_name}</span>
+              </span>
+              {r.other_major && (
+                <span className="ml-2 text-xs text-muted-foreground">{r.other_major}</span>
+              )}
             </Label>
           </li>
         ))}
       </ul>
       <Button onClick={find} disabled={busy || selected.length === 0}>
-        {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <CalendarClock className="mr-2 size-4" />}
+        {busy ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <CalendarClock className="mr-2 size-4" />
+        )}
         Suggest session times
       </Button>
       {error && <ErrorState title="Couldn't plan a session" message={error} onRetry={find} />}

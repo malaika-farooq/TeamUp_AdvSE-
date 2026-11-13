@@ -3,12 +3,16 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Sparkles, Trash2, X } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Loader2, Sparkles, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
+import { AvailabilityEditor } from "@/components/app/profile/AvailabilityEditor";
+import { CoursesEditor } from "@/components/app/profile/CoursesEditor";
+import { PhotoField } from "@/components/app/profile/PhotoField";
+import { SkillsEditor } from "@/components/app/profile/SkillsEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -16,8 +20,26 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
 import { fetchProfile } from "@/lib/queries";
+import {
+  profileCompleteness,
+  tidy,
+  totalHours,
+  type CourseInput,
+  type Range,
+  type SkillInput,
+} from "@/lib/profile-data";
+import {
+  changeAvatar,
+  loadMyAvailability,
+  loadMyCourses,
+  loadMySkills,
+  loadSuggestions,
+  removeAvatar,
+  saveAvailability,
+  saveCourses,
+  saveSkills,
+} from "@/lib/profile-queries";
 import { createSampleWorkspace, removeSampleWorkspace } from "@/lib/sample.functions";
-import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({
@@ -54,49 +76,108 @@ function SettingsPage() {
     queryFn: () => fetchProfile(user!.id),
     enabled: !!user,
   });
-  const slotsQuery = useQuery({
-    queryKey: ["availability", user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("availability_slots").select("*").eq("user_id", user!.id);
-      return data ?? [];
-    },
-    enabled: !!user,
+  const userId = user?.id;
+  const coursesQuery = useQuery({
+    queryKey: ["my-courses", userId],
+    queryFn: () => loadMyCourses(userId!),
+    enabled: !!userId,
   });
-
   const skillsQuery = useQuery({
-    queryKey: ["my-skills", user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("user_skills").select("skill_id, skills(name)").eq("user_id", user!.id);
-      return (data ?? []).map((r) => ({ id: r.skill_id, name: r.skills?.name ?? "" })).filter((r) => r.name);
-    },
-    enabled: !!user,
+    queryKey: ["my-skills", userId],
+    queryFn: () => loadMySkills(userId!),
+    enabled: !!userId,
   });
-  const [skillInput, setSkillInput] = useState("");
+  const slotsQuery = useQuery({
+    queryKey: ["availability", userId],
+    queryFn: () => loadMyAvailability(userId!),
+    enabled: !!userId,
+  });
+  const suggestionsQuery = useQuery({
+    queryKey: ["profile-suggestions"],
+    queryFn: loadSuggestions,
+    staleTime: 5 * 60_000,
+  });
 
-  async function addSkills() {
-    if (!user) return;
-    const names = [...new Set(skillInput.split(",").map((x) => x.trim()).filter(Boolean))];
-    if (!names.length) return;
-    for (const name of names) {
-      const existing = await supabase.from("skills").select("id").ilike("name", name).maybeSingle();
-      let skillId = existing.data?.id;
-      if (!skillId) {
-        const ins = await supabase.from("skills").insert({ name }).select("id").single();
-        if (ins.error) return void toast.error(ins.error.message);
-        skillId = ins.data.id;
-      }
-      const { error } = await supabase.from("user_skills").upsert({ user_id: user.id, skill_id: skillId });
-      if (error) return void toast.error(error.message);
+  // Editable copies; "Save" writes them to the database in one go.
+  const [courses, setCourses] = useState<CourseInput[]>([]);
+  const [skills, setSkills] = useState<SkillInput[]>([]);
+  const [ranges, setRanges] = useState<Range[]>([]);
+  const [savingAcademic, setSavingAcademic] = useState(false);
+  const [savingTimes, setSavingTimes] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+
+  useEffect(() => {
+    if (coursesQuery.data) setCourses(coursesQuery.data);
+  }, [coursesQuery.data]);
+  useEffect(() => {
+    if (skillsQuery.data) setSkills(skillsQuery.data);
+  }, [skillsQuery.data]);
+  useEffect(() => {
+    if (slotsQuery.data) setRanges(slotsQuery.data);
+  }, [slotsQuery.data]);
+
+  const academicDirty =
+    JSON.stringify(courses) !== JSON.stringify(coursesQuery.data ?? []) ||
+    JSON.stringify(skills) !== JSON.stringify(skillsQuery.data ?? []);
+  const timesDirty = JSON.stringify(ranges) !== JSON.stringify(slotsQuery.data ?? []);
+
+  async function saveAcademic() {
+    setSavingAcademic(true);
+    try {
+      await saveCourses(courses);
+      await saveSkills(skills);
+      toast.success("Courses and skills saved");
+      await Promise.all([
+        coursesQuery.refetch(),
+        skillsQuery.refetch(),
+        suggestionsQuery.refetch(),
+      ]);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't save your courses and skills.");
+    } finally {
+      setSavingAcademic(false);
     }
-    setSkillInput("");
-    skillsQuery.refetch();
   }
 
-  async function removeSkill(skillId: string) {
+  async function saveTimes() {
+    setSavingTimes(true);
+    try {
+      await saveAvailability(ranges);
+      toast.success("Availability saved");
+      await slotsQuery.refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't save your availability.");
+    } finally {
+      setSavingTimes(false);
+    }
+  }
+
+  async function pickPhoto(file: File) {
     if (!user) return;
-    const { error } = await supabase.from("user_skills").delete().eq("user_id", user.id).eq("skill_id", skillId);
-    if (error) return void toast.error(error.message);
-    skillsQuery.refetch();
+    setPhotoBusy(true);
+    try {
+      await changeAvatar(user.id, file, profileQuery.data?.avatar_url);
+      toast.success("Photo updated");
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't upload that photo.");
+    } finally {
+      setPhotoBusy(false);
+    }
+  }
+
+  async function dropPhoto() {
+    if (!user) return;
+    setPhotoBusy(true);
+    try {
+      await removeAvatar(user.id, profileQuery.data?.avatar_url);
+      toast.success("Photo removed");
+      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't remove your photo.");
+    } finally {
+      setPhotoBusy(false);
+    }
   }
 
   const [form, setForm] = useState({
@@ -125,35 +206,31 @@ function SettingsPage() {
     }
   }, [profileQuery.data]);
 
-  const slots = slotsQuery.data ?? [];
-  const isOn = (weekday: number, start: number) =>
-    slots.some((s) => s.weekday === weekday && s.start_minute === start);
-
-  async function toggleSlot(weekday: number, start: number, end: number) {
-    if (!user) return;
-    const existing = slots.find((s) => s.weekday === weekday && s.start_minute === start);
-    if (existing) {
-      const { error } = await supabase.from("availability_slots").delete().eq("id", existing.id);
-      if (error) return void toast.error(error.message);
-    } else {
-      const { error } = await supabase.from("availability_slots").insert({
-        user_id: user.id,
-        weekday,
-        start_minute: start,
-        end_minute: end,
-      });
-      if (error) return void toast.error(error.message);
-    }
-    slotsQuery.refetch();
-  }
-
   async function saveProfile(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const displayName = tidy(form.display_name);
+    if (!displayName) return void toast.error("Please enter your name.");
+    const timezone = form.timezone.trim() || "UTC";
+    try {
+      new Intl.DateTimeFormat("en", { timeZone: timezone });
+    } catch {
+      return void toast.error(
+        "That time zone isn't recognised. Try something like America/Toronto.",
+      );
+    }
     setSaving(true);
     const { error } = await supabase
       .from("profiles")
-      .update({ ...form, updated_at: new Date().toISOString() })
+      .update({
+        display_name: displayName,
+        university: tidy(form.university) || null,
+        major: tidy(form.major) || null,
+        bio: form.bio.trim() || null,
+        timezone,
+        discoverable: form.discoverable,
+        updated_at: new Date().toISOString(),
+      })
       .eq("id", user.id);
     setSaving(false);
     if (error) return void toast.error(error.message);
@@ -173,18 +250,39 @@ function SettingsPage() {
     setPassword({ current: "", next: "" });
   }
 
+  const completeness = profileCompleteness({
+    hasPhoto: !!profileQuery.data?.avatar_url,
+    university: profileQuery.data?.university,
+    major: profileQuery.data?.major,
+    bio: profileQuery.data?.bio,
+    courseCount: coursesQuery.data?.length ?? 0,
+    skillCount: skillsQuery.data?.length ?? 0,
+    availableMinutes: Math.round(totalHours(slotsQuery.data ?? []) * 60),
+  });
+
   return (
     <AppShell title="Settings" description="Your profile, availability and app preferences.">
       <Tabs defaultValue="profile" className="space-y-5">
         <TabsList className="flex flex-wrap justify-start">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="skills">Skills</TabsTrigger>
+          <TabsTrigger value="academic">Courses &amp; skills</TabsTrigger>
           <TabsTrigger value="availability">Availability</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile">
+        <TabsContent value="profile" className="space-y-5">
+          <CompletenessCard percent={completeness.percent} missing={completeness.missing} />
+          <div className="surface-card max-w-xl space-y-3 p-6">
+            <h3 className="font-semibold">Profile photo</h3>
+            <PhotoField
+              name={form.display_name || user?.email || "Student"}
+              path={profileQuery.data?.avatar_url}
+              busy={photoBusy}
+              onPick={pickPhoto}
+              onRemove={profileQuery.data?.avatar_url ? dropPhoto : undefined}
+            />
+          </div>
           <form onSubmit={saveProfile} className="surface-card max-w-xl space-y-4 p-6">
             <div className="space-y-1.5">
               <Label htmlFor="dn">Display name</Label>
@@ -248,84 +346,53 @@ function SettingsPage() {
           </form>
         </TabsContent>
 
-        <TabsContent value="skills">
-          <div className="surface-card max-w-xl space-y-4 p-6">
-            <p className="text-sm text-muted-foreground">
-              Skills help TeamUp match you with teams. Separate several with commas.
-            </p>
-            <form
-              className="flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void addSkills();
-              }}
-            >
-              <Input
-                aria-label="Add skills"
-                value={skillInput}
-                placeholder="e.g. Python, SQL, UI Design"
-                onChange={(e) => setSkillInput(e.target.value)}
-              />
-              <Button type="submit">Add</Button>
-            </form>
-            <div className="flex flex-wrap gap-1.5">
-              {(skillsQuery.data ?? []).map((sk) => (
-                <Badge key={sk.id} variant="secondary" className="gap-1">
-                  {sk.name}
-                  <button type="button" aria-label={`Remove ${sk.name}`} onClick={() => removeSkill(sk.id)}>
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              ))}
-              {skillsQuery.data?.length === 0 && (
-                <p className="text-sm text-muted-foreground">No skills yet.</p>
+        <TabsContent value="academic">
+          <div className="surface-card max-w-3xl space-y-6 p-6">
+            {(coursesQuery.isError || skillsQuery.isError) && (
+              <p role="alert" className="text-sm text-destructive">
+                Couldn't load your saved courses and skills.{" "}
+                {((coursesQuery.error ?? skillsQuery.error) as Error | null)?.message}
+              </p>
+            )}
+            <CoursesEditor
+              value={courses}
+              onChange={setCourses}
+              suggestions={suggestionsQuery.data?.courses ?? []}
+            />
+            <hr className="border-border" />
+            <SkillsEditor
+              value={skills}
+              onChange={setSkills}
+              suggestions={suggestionsQuery.data?.skills ?? []}
+            />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={saveAcademic} disabled={savingAcademic || !academicDirty}>
+                {savingAcademic && <Loader2 className="mr-2 size-4 animate-spin" />}
+                Save courses &amp; skills
+              </Button>
+              {academicDirty && (
+                <span className="text-sm text-muted-foreground">You have unsaved changes.</span>
               )}
             </div>
           </div>
         </TabsContent>
 
         <TabsContent value="availability">
-          <div className="surface-card space-y-4 p-6">
-            <p className="text-sm text-muted-foreground">
-              Tap the blocks you're usually free. Teammates only see overlap results, never your raw
-              schedule.
-            </p>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-sm">
-                <thead>
-                  <tr>
-                    <th className="p-2 text-left font-medium text-muted-foreground">Block</th>
-                    {DAYS.map((d) => (
-                      <th key={d} className="p-2 font-medium text-muted-foreground">
-                        {d}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {BLOCKS.map((b) => (
-                    <tr key={b.label}>
-                      <td className="p-2 text-muted-foreground">{b.label}</td>
-                      {DAYS.map((d, i) => (
-                        <td key={d} className="p-1">
-                          <button
-                            type="button"
-                            aria-pressed={isOn(i, b.start)}
-                            aria-label={`${d} ${b.label}`}
-                            onClick={() => toggleSlot(i, b.start, b.end)}
-                            className={cn(
-                              "h-10 w-full rounded-lg border border-border transition-colors duration-200",
-                              isOn(i, b.start)
-                                ? "bg-teal/25 border-teal"
-                                : "bg-muted/40 hover:bg-muted",
-                            )}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <div className="surface-card max-w-3xl space-y-5 p-6">
+            {slotsQuery.isError && (
+              <p role="alert" className="text-sm text-destructive">
+                Couldn't load your saved availability. {(slotsQuery.error as Error | null)?.message}
+              </p>
+            )}
+            <AvailabilityEditor value={ranges} onChange={setRanges} />
+            <div className="flex flex-wrap items-center gap-3">
+              <Button onClick={saveTimes} disabled={savingTimes || !timesDirty}>
+                {savingTimes && <Loader2 className="mr-2 size-4 animate-spin" />}
+                Save availability
+              </Button>
+              {timesDirty && (
+                <span className="text-sm text-muted-foreground">You have unsaved changes.</span>
+              )}
             </div>
           </div>
         </TabsContent>
@@ -334,7 +401,9 @@ function SettingsPage() {
           <div className="surface-card flex max-w-xl items-center justify-between p-6">
             <div>
               <p className="font-medium">Dark theme</p>
-              <p className="text-sm text-muted-foreground">Your choice is remembered on this device.</p>
+              <p className="text-sm text-muted-foreground">
+                Your choice is remembered on this device.
+              </p>
             </div>
             <Switch
               checked={theme === "dark"}
@@ -435,5 +504,28 @@ function SettingsPage() {
         </TabsContent>
       </Tabs>
     </AppShell>
+  );
+}
+
+function CompletenessCard({ percent, missing }: { percent: number; missing: string[] }) {
+  return (
+    <div className="surface-card max-w-xl space-y-3 p-6">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold">Profile completeness</h3>
+        <span className="text-sm font-medium">{percent}%</span>
+      </div>
+      <Progress value={percent} aria-label="Profile completeness" />
+      {missing.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          Your profile is complete. Great for matching!
+        </p>
+      ) : (
+        <ul className="list-disc space-y-0.5 pl-5 text-sm text-muted-foreground">
+          {missing.map((m) => (
+            <li key={m}>{m}</li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

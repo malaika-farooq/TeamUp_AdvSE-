@@ -47,6 +47,7 @@ import {
 } from "@/lib/queries";
 import { readableError, streamWrite, type WriteTool } from "@/lib/ai-client";
 import { tidyMarkdown } from "@/lib/markdown";
+import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import { MAX_TEAMMATE_SUGGESTIONS } from "@/lib/teammate-ranking";
 import {
   breakdownTask,
@@ -697,8 +698,8 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
             className="surface-card hover-lift space-y-3 p-4"
           >
             <div className="flex items-center gap-3">
-              <span className="relative grid size-10 shrink-0 place-items-center rounded-full bg-navy font-display text-sm font-bold text-navy-foreground">
-                {p.name.slice(0, 2).toUpperCase()}
+              <span className="relative shrink-0">
+                <UserAvatar name={p.name} path={p.avatar} className="size-10" />
                 <span
                   className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground ring-2 ring-card"
                   aria-label={`Rank ${p.rank}`}
