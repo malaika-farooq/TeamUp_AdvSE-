@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import type { Database } from "@/integrations/supabase/types";
@@ -34,6 +35,8 @@ function fmtWhen(d: Date) {
 
 function PartnersPage() {
   const queryClient = useQueryClient();
+  // Until the student picks a tab themselves, open on Requests whenever someone is waiting for an answer.
+  const [tab, setTab] = useState<string | null>(null);
   const requestsQuery = useQuery({
     queryKey: ["partner-requests"],
     queryFn: async () => {
@@ -64,7 +67,11 @@ function PartnersPage() {
         </Button>
       }
     >
-      <Tabs defaultValue={incoming.length ? "requests" : "partners"} className="space-y-5">
+      <Tabs
+        value={tab ?? (incoming.length ? "requests" : "partners")}
+        onValueChange={setTab}
+        className="space-y-5"
+      >
         <TabsList className="flex flex-wrap justify-start">
           <TabsTrigger value="requests">
             Requests{incoming.length > 0 && <Badge className="ml-2">{incoming.length}</Badge>}

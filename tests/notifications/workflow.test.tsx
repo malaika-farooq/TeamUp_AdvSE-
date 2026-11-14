@@ -30,6 +30,7 @@ beforeEach(setup);
 function switchTo(user: typeof BEN) {
   cleanup();
   h.user = user;
+  h.fake.setUserId(user.id);
 }
 
 const openBell = async (user: ReturnType<typeof renderWithClient>["user"]) => {

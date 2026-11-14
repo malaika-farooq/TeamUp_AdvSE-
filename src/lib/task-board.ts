@@ -79,7 +79,9 @@ export function dueState(
 }
 
 export function isOverdue(t: Pick<TaskLike, "due_date" | "status">, now: Date = new Date()) {
-  return dueState(t.due_date, t.status, now).kind === "overdue";
+  if (!t.due_date || columnOf(t.status) === "done") return false;
+  const due = new Date(t.due_date).getTime();
+  return !Number.isNaN(due) && due < now.getTime();
 }
 
 /** `2026-11-20T15:00:00Z` -> the `YYYY-MM-DDTHH:mm` a date-time input wants, in the student's own time. */

@@ -76,7 +76,10 @@ export function createFake(initialUserId = "user-1") {
       }
       const rows = (tables[table] ??= []);
       const cmp = (a: unknown, b: unknown) => (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0);
+      // Like the database's row-level rules: you only ever see and change your own notifications.
+      const mine = (r: Row) => table !== "notifications" || r["user_id"] === undefined || r["user_id"] === userId;
       const matches = (r: Row) =>
+        mine(r) &&
         Object.entries(call.filters).every(([k, v]) =>
           Array.isArray(v) ? v.includes(r[k]) : r[k] === v,
         ) &&

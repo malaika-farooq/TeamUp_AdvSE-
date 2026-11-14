@@ -102,25 +102,46 @@ export function memberContributions(input: {
   const now = input.now ?? new Date();
   const since = now.getTime() - 30 * DAY;
   const teamDone = input.tasks.filter((t) => columnOf(t.status) === "done").length;
+
+  // Group everything by person once, so the cost grows with the amount of data, not data x members.
+  const group = <T,>(items: T[], key: (x: T) => string) => {
+    const map = new Map<string, T[]>();
+    for (const x of items) {
+      const k = key(x);
+      const list = map.get(k);
+      if (list) list.push(x);
+      else map.set(k, [x]);
+    }
+    return map;
+  };
+  const assigned = group(input.tasks, (t) => t.assignee_id ?? "");
+  const created = group(input.tasks, (t) => t.created_by);
+  const comments = group(input.comments ?? [], (c) => c.author_id);
+  const resources = group(input.resources ?? [], (r) => r.created_by);
+  const sessions = group(input.sessions ?? [], (s) => s.created_by);
+  const activity = group(input.activity ?? [], (a) => a.actor_id);
+
   const stats = input.members.map((m): MemberStats => {
-    const mine = input.tasks.filter((t) => t.assignee_id === m.id);
+    const mine = assigned.get(m.id) ?? [];
     const done = mine.filter((t) => columnOf(t.status) === "done").length;
-    const events = (input.activity ?? []).filter((a) => a.actor_id === m.id);
-    const last = events.reduce<string | null>(
-      (best, a) => (!best || a.created_at > best ? a.created_at : best),
-      null,
-    );
+    const events = activity.get(m.id) ?? [];
+    let last: string | null = null;
+    let recent = 0;
+    for (const a of events) {
+      if (!last || a.created_at > last) last = a.created_at;
+      if (new Date(a.created_at).getTime() >= since) recent++;
+    }
     return {
       ...m,
       assigned: mine.length,
       done,
       open: mine.length - done,
       overdue: mine.filter((t) => isOverdue(t, now)).length,
-      created: input.tasks.filter((t) => t.created_by === m.id).length,
-      comments: (input.comments ?? []).filter((c) => c.author_id === m.id).length,
-      resources: (input.resources ?? []).filter((r) => r.created_by === m.id).length,
-      sessions: (input.sessions ?? []).filter((s) => s.created_by === m.id).length,
-      recentActions: events.filter((a) => new Date(a.created_at).getTime() >= since).length,
+      created: created.get(m.id)?.length ?? 0,
+      comments: comments.get(m.id)?.length ?? 0,
+      resources: resources.get(m.id)?.length ?? 0,
+      sessions: sessions.get(m.id)?.length ?? 0,
+      recentActions: recent,
       lastActive: last,
       completionPercent: mine.length ? Math.round((done / mine.length) * 100) : 0,
       sharePercent: teamDone ? Math.round((done / teamDone) * 100) : 0,
