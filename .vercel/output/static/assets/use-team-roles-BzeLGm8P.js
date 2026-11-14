@@ -1,1 +1,0 @@
-import{Q as e,U as t}from"./UserAvatar-uzV_Y4f8.js";import{u as n}from"./index-BK649yFp.js";function r(){let{user:r}=n(),i=e({queryKey:[`teams`],queryFn:t,enabled:!!r});return{roleIn:e=>i.data?.find(t=>t.id===e)?.role??null,userId:r?.id,loaded:!i.isLoading}}export{r as t};

@@ -1,1 +1,0 @@
-import{n as e,t}from"./auth-middleware-C5KhrZzF.js";import{m as n}from"./index-BK649yFp.js";var r=e({method:`POST`}).middleware([t]).handler(n(`2eb58ee73d23dd510d1c709fb24c76dbacdd68d7303a090f1cff8199f5346242`)),i=e({method:`POST`}).middleware([t]).handler(n(`968e2343a83e603c634c8bff31ce533102ddc08547bbf788dc6622316aee2a42`));export{i as n,r as t};
