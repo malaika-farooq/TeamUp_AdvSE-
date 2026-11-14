@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { toast } from "sonner";
@@ -8,7 +8,6 @@ import {
   CalendarDays,
   Check,
   Copy,
-  FolderOpen,
   ListChecks,
   Loader2,
   LogOut,
@@ -30,6 +29,8 @@ import { TaskBoard } from "@/components/app/TaskBoard";
 import { columnOf } from "@/lib/task-board";
 import { SessionsPanel } from "@/components/app/SessionsPanel";
 import { MeetingTimes } from "@/components/app/teams/MeetingTimes";
+import { ProgressDashboard } from "@/components/app/teams/ProgressDashboard";
+import { ActivityHistory } from "@/components/app/teams/ActivityHistory";
 import { ResourcesPanel } from "@/components/app/ResourcesPanel";
 import { CardSkeletons, EmptyState, ErrorState } from "@/components/app/states";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -72,7 +73,6 @@ import {
 import { ROLE_LABEL, expiresText, inviteRolesFor, memberActions } from "@/lib/team-rules";
 import {
   STATUSES,
-  fetchActivity,
   fetchResources,
   fetchSessions,
   fetchTasks,
@@ -132,10 +132,6 @@ function TeamWorkspace() {
   const resourcesQuery = useQuery({
     queryKey: ["resources", [teamId]],
     queryFn: () => fetchResources([teamId]),
-  });
-  const activityQuery = useQuery({
-    queryKey: ["activity", [teamId]],
-    queryFn: () => fetchActivity([teamId], 50),
   });
   const invitationsQuery = useQuery({
     queryKey: ["invitations", teamId],
@@ -292,7 +288,21 @@ function TeamWorkspace() {
   if (teamQuery.error || !teamQuery.data) {
     return (
       <AppShell title="Team workspace">
-        <ErrorState message="You don't have access to this team, or it no longer exists." />
+        <EmptyState
+          icon={Users}
+          title="Team not available"
+          description="You don't have access to this team, or it no longer exists."
+          action={
+            <div className="flex flex-wrap justify-center gap-2">
+              <Button asChild>
+                <Link to="/teams">Back to My Teams</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link to="/discover">Find a team to join</Link>
+              </Button>
+            </div>
+          }
+        />
       </AppShell>
     );
   }
@@ -321,6 +331,7 @@ function TeamWorkspace() {
       <Tabs defaultValue="overview" className="space-y-5">
         <TabsList className="flex w-full flex-wrap justify-start">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="progress">Progress</TabsTrigger>
           <TabsTrigger value="tasks">Task Board</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="meeting-times">Meeting times</TabsTrigger>
@@ -677,45 +688,17 @@ function TeamWorkspace() {
         )}
 
         <TabsContent value="activity">
-          {(activityQuery.data ?? []).length === 0 ? (
-            <EmptyState
-              icon={FolderOpen}
-              title="No activity yet"
-              description="Actions like task updates and new resources appear here."
-            />
-          ) : (
-            <ol className="surface-card divide-y divide-border">
-              {(activityQuery.data ?? []).map((a, i) => (
-                <motion.li
-                  key={a.id}
-                  initial={{ opacity: 0, x: -6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.18, delay: i * 0.02 }}
-                  className="p-4 text-sm"
-                >
-                  <p className="flex items-center gap-2">
-                    <UserAvatar
-                      name={
-                        members.find((m) => m.user_id === a.actor_id)?.profile?.display_name ??
-                        "Someone"
-                      }
-                      path={members.find((m) => m.user_id === a.actor_id)?.profile?.avatar_url}
-                      className="size-6"
-                      fallbackClassName="text-[10px]"
-                    />
-                    <span>
-                      {members.find((m) => m.user_id === a.actor_id)?.profile?.display_name ??
-                        "Someone"}{" "}
-                      {a.summary}
-                    </span>
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(a.created_at).toLocaleString()}
-                  </p>
-                </motion.li>
-              ))}
-            </ol>
-          )}
+          <ActivityHistory teamId={teamId} members={members} />
+        </TabsContent>
+
+        <TabsContent value="progress">
+          <ProgressDashboard
+            teamId={teamId}
+            tasks={tasks}
+            members={members}
+            resources={resourcesQuery.data ?? []}
+            sessions={sessionsQuery.data ?? []}
+          />
         </TabsContent>
       </Tabs>
 

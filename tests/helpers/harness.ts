@@ -31,6 +31,7 @@ type Harness = {
     breakdown: ReturnType<typeof mock>;
   };
   search: Record<string, unknown>;
+  params: Record<string, string>;
   confetti: ReturnType<typeof mock>;
 };
 
@@ -44,6 +45,7 @@ export function resetHarness(user: TestUser | null = defaultUser()) {
   h.toast = { success: mock(), error: mock(), warning: mock(), message: mock() };
   h.theme = { theme: "light", setTheme: mock(), toggle: mock() };
   h.search = {};
+  h.params = {};
   h.confetti = mock();
   h.sample = { create: mock(async () => ({})), remove: mock(async () => ({})) };
   h.ai = {

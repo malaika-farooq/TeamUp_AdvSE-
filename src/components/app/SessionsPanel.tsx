@@ -51,6 +51,7 @@ import {
 } from "@/lib/queries";
 import { TaskPanel, taskErrorMessage } from "@/components/app/TaskBoard";
 import { cn } from "@/lib/utils";
+import { validateSessionForm } from "@/lib/session-form";
 import { bestMeetingTimes, inViewerZone } from "@/lib/meeting-times";
 import { loadTeamAvailability } from "@/lib/team-availability";
 
@@ -529,20 +530,24 @@ function CreateSessionDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !teamId) return;
+    const checked = validateSessionForm({ ...form, weekly });
+    if (!checked.ok) {
+      return void toast.error(Object.values(checked.errors)[0] ?? "Check the session details.");
+    }
+    const clean = checked.clean;
     setBusy(true);
     const { data, error } = await supabase
       .from("sessions")
       .insert({
         team_id: teamId,
-        title: form.title,
+        title: clean.title,
         description: form.description || null,
-        starts_at: new Date(form.start).toISOString(),
-        ends_at: new Date(form.end).toISOString(),
+        starts_at: clean.startsAt,
+        ends_at: clean.endsAt,
         location: form.location || null,
         created_by: user.id,
         recurrence: weekly ? "weekly" : "none",
-        recurrence_end:
-          weekly && form.recurrenceEnd ? new Date(form.recurrenceEnd).toISOString() : null,
+        recurrence_end: clean.recurrenceEnd,
       })
       .select("id")
       .single();
@@ -558,12 +563,12 @@ function CreateSessionDialog({
         status: m.user_id === user.id ? "accepted" : "invited",
       })) as never,
     );
-    await logActivity(teamId, user.id, "session_created", `scheduled "${form.title}"`, data.id);
+    await logActivity(teamId, user.id, "session_created", `scheduled "${clean.title}"`, data.id);
     await Promise.all(
       members
         .filter((m) => m.user_id !== user.id)
         .map((m) =>
-          notify(m.user_id, "session_scheduled", "New study session", form.title, "/calendar"),
+          notify(m.user_id, "session_scheduled", "New study session", clean.title, "/calendar"),
         ),
     );
     setBusy(false);

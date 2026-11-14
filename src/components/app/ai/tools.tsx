@@ -370,7 +370,7 @@ export function PlanTool({ teamId }: { teamId: string }) {
       .insert(
         chosen.map((d, i) => ({
           team_id: teamId,
-          title: d.title.trim(),
+          title: d.title.trim().slice(0, 200),
           description: d.description,
           priority: d.priority as TaskPriority,
           status: "todo" as const,
@@ -957,8 +957,9 @@ export function BreakdownTool({ teamId }: { teamId: string }) {
       {steps.length > 0 && (
         <div className="surface-card space-y-3 p-4">
           {steps.map((s, i) => (
-            <label key={i} className="flex items-center gap-3">
+            <div key={i} className="flex items-center gap-3">
               <Checkbox
+                aria-label={`Include step ${i + 1}`}
                 checked={s.selected}
                 onCheckedChange={(v) =>
                   setSteps((prev) => prev.map((p, j) => (j === i ? { ...p, selected: !!v } : p)))
@@ -973,7 +974,7 @@ export function BreakdownTool({ teamId }: { teamId: string }) {
                 }
                 aria-label={`Step ${i + 1}`}
               />
-            </label>
+            </div>
           ))}
           {tip && (
             <p className="flex items-start gap-2 rounded-lg bg-muted/50 p-3 text-xs">

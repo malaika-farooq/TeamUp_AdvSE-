@@ -46,8 +46,13 @@ export async function fetchProfile(userId: string) {
 }
 
 export async function fetchMyTeams() {
+  // Only the signed-in student's own memberships. (Without this filter the list also holds every teammate's
+  // row, and the student could be shown the owner's role instead of their own.)
+  const { data: auth } = await supabase.auth.getSession();
+  const me = auth.session?.user.id;
+  if (!me) return [] as (Team & { role: TeamRole })[];
   const memberships = unwrap(
-    await supabase.from("team_members").select("team_id, role, joined_at"),
+    await supabase.from("team_members").select("team_id, role, joined_at").eq("user_id", me),
   );
   const ids = memberships.map((m) => m.team_id);
   if (!ids.length) return [] as (Team & { role: TeamRole })[];

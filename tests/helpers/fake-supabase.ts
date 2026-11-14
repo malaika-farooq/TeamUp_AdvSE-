@@ -17,7 +17,30 @@ export type Call = {
 
 type Injected = { match: (c: Call) => boolean; error: DbError; once: boolean };
 
-export function createFake(userId = "user-1") {
+/** What the real database fills in when a row is added without these columns. */
+const ROW_DEFAULTS: Record<string, () => Record<string, unknown>> = {
+  tasks: () => ({
+    description: null,
+    status: "todo",
+    priority: "medium",
+    assignee_id: null,
+    due_date: null,
+    position: 1000,
+    completed_at: null,
+  }),
+  resources: () => ({ content: null, url: null, storage_path: null, file_size: null, mime_type: null, tags: [], version: 1 }),
+  notifications: () => ({ body: null, link: null, read_at: null }),
+  sessions: () => ({ description: null, location: null, recurrence: "none", recurrence_end: null }),
+  task_comments: () => ({}),
+  task_checklist_items: () => ({ done: false, position: 0 }),
+  activity_logs: () => ({ entity_id: null }),
+  ai_threads: () => ({ title: "New conversation" }),
+  ai_messages: () => ({}),
+  invitations: () => ({}),
+};
+
+export function createFake(initialUserId = "user-1") {
+  let userId = initialUserId;
   const tables: Record<string, Row[]> = {};
   const calls: Call[] = [];
   const rpcCalls: { name: string; args: Record<string, unknown> }[] = [];
@@ -31,6 +54,7 @@ export function createFake(userId = "user-1") {
   const authSession: Record<string, unknown> = {};
   const asError = (e: DbError) => Object.assign(new Error(e.message), e);
   const authThrows: Record<string, Error> = {};
+  let sessionMode: "signed-in" | "signed-out" | "error" = "signed-in";
 
   const clone = <T>(v: T): T => (v === undefined ? v : (JSON.parse(JSON.stringify(v)) as T));
 
@@ -38,6 +62,9 @@ export function createFake(userId = "user-1") {
     const call: Call = { table, op: "select", filters: {} };
     let returning = false;
     let single: "none" | "maybe" | "one" = "none";
+    const ranges: { col: string; op: "lt" | "lte" | "gt" | "gte"; val: unknown }[] = [];
+    let orderBy: { col: string; ascending: boolean } | null = null;
+    let max: number | null = null;
 
     const run = async (): Promise<Result> => {
       calls.push(clone({ ...call }));
@@ -48,17 +75,34 @@ export function createFake(userId = "user-1") {
         return { data: null, error: hit.error };
       }
       const rows = (tables[table] ??= []);
+      const cmp = (a: unknown, b: unknown) => (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0);
       const matches = (r: Row) =>
         Object.entries(call.filters).every(([k, v]) =>
           Array.isArray(v) ? v.includes(r[k]) : r[k] === v,
-        );
+        ) &&
+        ranges.every(({ col, op, val }) => {
+          const c = cmp(r[col], val);
+          return op === "lt" ? c < 0 : op === "lte" ? c <= 0 : op === "gt" ? c > 0 : c >= 0;
+        });
       let data: unknown;
       if (call.op === "select") {
-        data = rows.filter(matches).map(clone);
+        let found = rows.filter(matches);
+        if (orderBy) {
+          const { col, ascending } = orderBy;
+          found = [...found].sort((a, b) => (ascending ? 1 : -1) * cmp(a[col], b[col]));
+        }
+        if (max !== null) found = found.slice(0, max);
+        data = found.map(clone);
       } else if (call.op === "insert") {
         const items = ([] as Row[]).concat(call.payload as Row | Row[]);
-        items.forEach((i) => rows.push(clone(i)));
-        data = items.map(clone);
+        const made = items.map((i) => {
+          const defaults = ROW_DEFAULTS[table];
+          if (!defaults) return clone(i);
+          const now = new Date().toISOString();
+          return { id: crypto.randomUUID(), created_at: now, updated_at: now, ...defaults(), ...clone(i) };
+        });
+        made.forEach((r) => rows.push(r));
+        data = made.map(clone);
       } else if (call.op === "upsert") {
         const items = ([] as Row[]).concat(call.payload as Row | Row[]);
         const keys = (call.onConflict ?? "id").split(",").map((k) => k.trim());
@@ -116,8 +160,30 @@ export function createFake(userId = "user-1") {
         return b;
       },
       ilike: () => b,
-      order: () => b,
-      limit: () => b,
+      order(col: string, opts?: { ascending?: boolean }) {
+        orderBy = { col, ascending: opts?.ascending !== false };
+        return b;
+      },
+      limit(n: number) {
+        max = n;
+        return b;
+      },
+      lt(col: string, val: unknown) {
+        ranges.push({ col, op: "lt", val });
+        return b;
+      },
+      lte(col: string, val: unknown) {
+        ranges.push({ col, op: "lte", val });
+        return b;
+      },
+      gt(col: string, val: unknown) {
+        ranges.push({ col, op: "gt", val });
+        return b;
+      },
+      gte(col: string, val: unknown) {
+        ranges.push({ col, op: "gte", val });
+        return b;
+      },
       maybeSingle() {
         single = "maybe";
         return b;
@@ -213,6 +279,14 @@ export function createFake(userId = "user-1") {
       }),
     },
     auth: {
+      getSession: async () => {
+        if (sessionMode === "signed-out") return { data: { session: null }, error: null };
+        if (sessionMode === "error") return { data: { session: null }, error: new Error("Failed to fetch") };
+        return {
+          data: { session: { access_token: "test-token", user: { id: userId, email: "maya.chen@example.edu" } } },
+          error: null,
+        };
+      },
       updateUser: async (args: unknown) => {
         authCalls.push({ op: "updateUser", args: clone(args) });
         const err = authErrors["updateUser"] && asError(authErrors["updateUser"]!);
@@ -276,6 +350,14 @@ export function createFake(userId = "user-1") {
     /** Make signUp return a session straight away (email confirmation turned off). */
     signUpReturnsSession() {
       authSession["signUp"] = { access_token: "t" };
+    },
+    /** Pretend a different student is signed in (their id is what the session reports). */
+    setUserId(id: string) {
+      userId = id;
+    },
+    /** What "who is signed in on this device?" answers. */
+    setSessionMode(mode: "signed-in" | "signed-out" | "error") {
+      sessionMode = mode;
     },
     /** Make a sign-in call throw, as a network failure does ("Failed to fetch"). */
     throwAuth(op: string, error: Error) {

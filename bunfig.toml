@@ -8,3 +8,7 @@ minimumReleaseAge = 86400
 [test]
 # A simulated browser and stand-ins for Supabase, sign-in and toasts, so component tests run offline.
 preload = ["./tests/setup/dom.ts", "./tests/setup/mocks.tsx"]
+# Screen tests type into forms and wait for the screen to settle; give them room on a busy machine.
+timeout = 20000
+# The Playwright and JMeter files in Tests_Requirements run with their own tools, not bun.
+pathIgnorePatterns = ["Tests_Requirements/**", "playwright/**"]

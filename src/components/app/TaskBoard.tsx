@@ -915,6 +915,8 @@ export function TaskPanel({
       .from("task_comments")
       .insert({ task_id: task.id, author_id: user.id, body: comment.trim() });
     if (error) return void toast.error(error.message);
+    await logActivity(task.team_id, user.id, "comment_added", `commented on "${task.title}"`, task.id);
+    queryClient.invalidateQueries({ queryKey: ["activity"] });
     setComment("");
     detail.refetch();
   }
@@ -1032,7 +1034,8 @@ export function TaskPanel({
   async function remove() {
     if (!task) return;
     const { error } = await supabase.from("tasks").delete().eq("id", task.id);
-    if (error) return void toast.error(error.message);
+    if (error) return void toast.error(taskErrorMessage(error));
+    if (user) await logActivity(task.team_id, user.id, "task_deleted", `deleted "${task.title}"`);
     toast.success("Task deleted");
     setConfirmDelete(false);
     onClose();

@@ -64,7 +64,11 @@ mock.module("@tanstack/react-router", () => ({
   createFileRoute: () => (opts: Record<string, unknown>) => ({
     ...opts,
     useSearch: () => h.search,
+    useParams: () => h.params,
   }),
+  // A redirect is thrown, as in the real router, so route guards can be tested.
+  redirect: (opts: Record<string, unknown>) => Object.assign(new Error("redirect"), { redirect: opts }),
+  Outlet: () => null,
 }));
 
 mock.module("@tanstack/react-start", () => ({
@@ -140,6 +144,23 @@ mock.module("motion/react", () => ({
     {},
     {
       get: (_t, tag: string) => {
+        // motion.create(Component): the same component without the animation props
+        if (tag === "create") {
+          return (Base: React.ElementType) => {
+            const key = `create:${String(Base.displayName ?? Base.name ?? "component")}`;
+            let wrapped = motionCache.get(key);
+            if (!wrapped) {
+              wrapped = ({ children, ...props }) =>
+                createElement(
+                  Base,
+                  Object.fromEntries(Object.entries(props).filter(([k]) => !MOTION_PROPS.has(k))),
+                  children,
+                );
+              motionCache.set(key, wrapped);
+            }
+            return wrapped;
+          };
+        }
         let component = motionCache.get(tag);
         if (!component) {
           component = ({ children, ...props }) => {
