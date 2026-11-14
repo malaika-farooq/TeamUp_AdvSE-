@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { CoursesEditor } from "@/components/app/profile/CoursesEditor";
@@ -19,6 +19,7 @@ import {
 export function AcademicTab() {
   const { user } = useAuth();
   const userId = user?.id;
+  const queryClient = useQueryClient();
   const coursesQuery = useQuery({
     queryKey: ["my-courses", userId],
     queryFn: () => loadMyCourses(userId!),
@@ -61,6 +62,8 @@ export function AcademicTab() {
         coursesQuery.refetch(),
         skillsQuery.refetch(),
         suggestionsQuery.refetch(),
+        // Everywhere else that shows courses or skills (matching, teammates) picks up the change too.
+        queryClient.invalidateQueries(),
       ]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't save your courses and skills.");

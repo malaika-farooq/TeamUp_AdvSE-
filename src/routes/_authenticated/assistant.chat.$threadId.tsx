@@ -65,11 +65,11 @@ function ThreadPage() {
         <EmptyState
           icon={MessageSquareX}
           title="This conversation doesn't exist"
-          description="It may have been deleted. Start a new one from the AI Assistant page."
+          description="It may have been deleted. Start a new one from the AI Teammate Matching page."
         />
         <div className="mt-4 flex justify-center">
           <Button asChild>
-            <Link to="/assistant">Back to AI Assistant</Link>
+            <Link to="/assistant">Back to AI Teammate Matching</Link>
           </Button>
         </div>
       </AppShell>

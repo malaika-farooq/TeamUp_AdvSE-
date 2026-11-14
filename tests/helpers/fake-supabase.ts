@@ -260,6 +260,10 @@ export function createFake(userId = "user-1") {
     failRpc(name: string, error: DbError) {
       rpcErrors[name] = error;
     },
+    /** Stop an RPC from failing, e.g. after the network "comes back". */
+    clearRpcError(name: string) {
+      delete rpcErrors[name];
+    },
     failAuth(op: string, error: DbError) {
       authErrors[op] = error;
     },

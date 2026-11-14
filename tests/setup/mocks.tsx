@@ -77,6 +77,36 @@ mock.module("@/lib/sample.functions", () => ({
   removeSampleWorkspace: (...a: unknown[]) => h.sample.remove(...a),
 }));
 
+mock.module("@/lib/partners.functions", () => ({
+  suggestStudyPartners: (...a: unknown[]) => h.ai.suggestPartners(...a),
+  proposeStudySessions: (...a: unknown[]) => h.ai.proposeSessions(...a),
+}));
+
+mock.module("@/lib/ai.functions", () => ({
+  draftTaskPlan: (...a: unknown[]) => h.ai.planTasks(...a),
+  suggestTeammates: (...a: unknown[]) => h.ai.suggestTeammates(...a),
+  breakdownTask: (...a: unknown[]) => h.ai.breakdown(...a),
+}));
+
+// The page frame (menus, notifications, floating helper) is tested on its own; here it just shows the title.
+mock.module("@/components/app/AppShell", () => ({
+  AppShell: ({
+    title,
+    description,
+    children,
+  }: {
+    title: string;
+    description?: string;
+    children?: ReactNode;
+  }) => (
+    <main>
+      <h1>{title}</h1>
+      {description && <p data-testid="page-description">{description}</p>}
+      {children}
+    </main>
+  ),
+}));
+
 // Animations add nothing to these tests and cancelling them on unmount raises errors in the simulated browser,
 // so "motion" elements become plain elements.
 const MOTION_PROPS = new Set([

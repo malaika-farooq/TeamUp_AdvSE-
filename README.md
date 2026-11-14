@@ -10,7 +10,7 @@ TeamUp is a collaborative study and team-planning web app. Students create or jo
 - **Tasks and calendar:** priorities, due dates, assignees, checklists, comments, study sessions with RSVP.
 - **Resources:** notes, links and files per team (private storage).
 - **Study partners:** requests, accepted partners, and group study sessions with accept/decline.
-- **AI Assistant:** task plans and breakdowns, progress summaries, weekly check-ins, meeting agendas, study guides, quizzes, teammate ideas, study-partner matching, study-session planning, and saved chat threads.
+- **AI Teammate Matching:** study-partner matching and group-session planning from profile, skills, availability and workload, plus the additional AI features: task plans and breakdowns, progress summaries, weekly check-ins, meeting agendas, study guides, quizzes, teammate ideas, and saved chat threads.
 
 ## Tech stack
 
@@ -56,7 +56,7 @@ Requirements: [Bun](https://bun.sh/) or Node.js 20+ with npm.
 | --- | --- | --- |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID` | Browser | Public values only |
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_PROJECT_ID` | Server | Same project as above |
-| `NVIDIA_API_KEY` | Server only | Create one at <https://build.nvidia.com/settings/api-keys>. Without it the AI Assistant shows "not configured"; the rest of the app works |
+| `NVIDIA_API_KEY` | Server only | Create one at <https://build.nvidia.com/settings/api-keys>. Without it AI Teammate Matching shows "not configured"; the rest of the app works |
 | `NVIDIA_MODEL` | Server only | Optional. Default `nvidia/nemotron-3.5-lightning-30b-a3b` |
 
 Never put a private key, service-role key or database password in a `VITE_*` variable (those reach the browser), and never commit `.env`.

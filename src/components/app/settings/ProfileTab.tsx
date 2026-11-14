@@ -126,7 +126,7 @@ export function ProfileTab() {
     try {
       await saveProfile(user.id, checked.value);
       toast.success("Profile saved");
-      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await queryClient.invalidateQueries();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't save your profile.");
     } finally {
@@ -140,7 +140,7 @@ export function ProfileTab() {
     try {
       await changeAvatar(user.id, file, profileQuery.data?.avatar_url);
       toast.success("Photo updated");
-      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await queryClient.invalidateQueries();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't upload that photo.");
     } finally {
@@ -154,7 +154,7 @@ export function ProfileTab() {
     try {
       await removeAvatar(user.id, profileQuery.data?.avatar_url);
       toast.success("Photo removed");
-      await queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await queryClient.invalidateQueries();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't remove your photo.");
     } finally {

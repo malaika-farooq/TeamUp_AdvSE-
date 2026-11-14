@@ -14,7 +14,13 @@ export async function authHeaders(): Promise<Record<string, string>> {
 }
 
 export function readableError(e: unknown): string {
-  const raw = e instanceof Error ? e.message : String(e ?? "");
+  // Supabase errors are plain objects with a message, not Error instances.
+  const raw =
+    e instanceof Error
+      ? e.message
+      : typeof e === "object" && e && "message" in e && typeof e.message === "string"
+        ? e.message
+        : String(e ?? "");
   try {
     const parsed = JSON.parse(raw) as { error?: string };
     if (parsed?.error) return parsed.error;

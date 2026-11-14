@@ -22,6 +22,14 @@ type Harness = {
     toggle: ReturnType<typeof mock>;
   };
   sample: { create: ReturnType<typeof mock>; remove: ReturnType<typeof mock> };
+  /** The AI server functions: matching, session planning and the team tools. */
+  ai: {
+    suggestPartners: ReturnType<typeof mock>;
+    proposeSessions: ReturnType<typeof mock>;
+    planTasks: ReturnType<typeof mock>;
+    suggestTeammates: ReturnType<typeof mock>;
+    breakdown: ReturnType<typeof mock>;
+  };
   search: Record<string, unknown>;
 };
 
@@ -36,6 +44,13 @@ export function resetHarness(user: TestUser | null = defaultUser()) {
   h.theme = { theme: "light", setTheme: mock(), toggle: mock() };
   h.search = {};
   h.sample = { create: mock(async () => ({})), remove: mock(async () => ({})) };
+  h.ai = {
+    suggestPartners: mock(async () => ({ suggestions: [], empty: "no_matches" })),
+    proposeSessions: mock(async () => ({ proposals: [] })),
+    planTasks: mock(async () => ({ tasks: [] })),
+    suggestTeammates: mock(async () => ({ suggestions: [], empty: null })),
+    breakdown: mock(async () => ({ steps: [] })),
+  };
   return h;
 }
 

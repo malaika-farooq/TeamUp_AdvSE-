@@ -178,7 +178,7 @@ function PartnersTab({ query }: { query: RequestsQuery }) {
       <EmptyState
         icon={Users}
         title="No study partners yet"
-        description="Use the AI Assistant to find students who fit your courses, skills, free time and workload."
+        description="Use AI Teammate Matching to find students who fit your courses, skills, free time and workload."
         action={
           <Button asChild>
             <Link to="/assistant">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { AvailabilityEditor } from "@/components/app/profile/AvailabilityEditor";
@@ -12,6 +12,7 @@ import { loadMyAvailability, saveAvailability } from "@/lib/profile-queries";
 export function AvailabilityTab() {
   const { user } = useAuth();
   const userId = user?.id;
+  const queryClient = useQueryClient();
   const slotsQuery = useQuery({
     queryKey: ["availability", userId],
     queryFn: () => loadMyAvailability(userId!),
@@ -31,7 +32,7 @@ export function AvailabilityTab() {
     try {
       await saveAvailability(ranges);
       toast.success("Availability saved");
-      await slotsQuery.refetch();
+      await Promise.all([slotsQuery.refetch(), queryClient.invalidateQueries()]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Couldn't save your availability.");
     } finally {

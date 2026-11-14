@@ -102,7 +102,7 @@ export const Route = createFileRoute("/api/ai/chat")({
         const messages: AIMessage[] = [
           {
             role: "system",
-            content: `You are TeamUp's study assistant for university students working in teams. ${teamLine} Be friendly, specific and concise. Format answers in markdown with short headings or bullet lists when helpful. Refer to real task, note and session titles from the records. You can't create, edit or delete anything yourself — when an action would help, tell the student exactly where to do it in TeamUp (Tasks board, Calendar, Resources, Members, or the AI tools on the AI Assistant page). ${UNTRUSTED_NOTE}\n\n${records}`,
+            content: `You are TeamUp's study assistant for university students working in teams. ${teamLine} Be friendly, specific and concise. Format answers in markdown with short headings or bullet lists when helpful. Refer to real task, note and session titles from the records. You can't create, edit or delete anything yourself — when an action would help, tell the student exactly where to do it in TeamUp (Tasks board, Calendar, Resources, Members, or the AI features on the AI Teammate Matching page). ${UNTRUSTED_NOTE}\n\n${records}`,
           },
           ...(history ?? [])
             .reverse()

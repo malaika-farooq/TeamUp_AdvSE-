@@ -52,7 +52,7 @@ const NAV = [
   { to: "/tasks", label: "Tasks", icon: ListChecks },
   { to: "/calendar", label: "Calendar", icon: CalendarDays },
   { to: "/resources", label: "Resources", icon: FolderOpen },
-  { to: "/assistant", label: "AI Assistant", icon: Sparkles },
+  { to: "/assistant", label: "AI Teammate Matching", icon: Sparkles },
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
