@@ -240,3 +240,98 @@ describe("profile completeness", () => {
     expect(c.percent).toBe(29);
   });
 });
+
+import {
+  PROFILE_LIMITS,
+  isValidTimeZone,
+  validateProfile,
+  type ProfileForm,
+} from "../src/lib/profile-data";
+
+describe("profile form validation", () => {
+  const form = (over: Partial<ProfileForm> = {}): ProfileForm => ({
+    display_name: "Maya Chen",
+    university: "Northbridge University",
+    major: "Computer Science",
+    bio: "Loves databases.",
+    timezone: "America/Toronto",
+    discoverable: true,
+    ...over,
+  });
+  const ok = (over: Partial<ProfileForm> = {}) => {
+    const r = validateProfile(form(over));
+    if (!r.ok) throw new Error(r.error);
+    return r.value;
+  };
+  const error = (over: Partial<ProfileForm> = {}) => {
+    const r = validateProfile(form(over));
+    return r.ok ? null : r.error;
+  };
+
+  test("accepts a complete profile unchanged", () => {
+    expect(ok()).toEqual({
+      display_name: "Maya Chen",
+      university: "Northbridge University",
+      major: "Computer Science",
+      bio: "Loves databases.",
+      timezone: "America/Toronto",
+      discoverable: true,
+    });
+  });
+
+  test("tidies spaces in names, university and major", () => {
+    const v = ok({
+      display_name: "  Maya    Chen ",
+      university: " UBC  ",
+      major: "Data   Science",
+    });
+    expect(v.display_name).toBe("Maya Chen");
+    expect(v.university).toBe("UBC");
+    expect(v.major).toBe("Data Science");
+  });
+
+  test("blank optional fields become null", () => {
+    const v = ok({ university: "  ", major: "", bio: "\n  " });
+    expect(v).toMatchObject({ university: null, major: null, bio: null });
+  });
+
+  test("keeps line breaks inside a bio", () => {
+    expect(ok({ bio: "Line one\nLine two" }).bio).toBe("Line one\nLine two");
+  });
+
+  test("a name is required", () => {
+    expect(error({ display_name: "   " })).toBe("Please enter your name.");
+    expect(error({ display_name: "" })).toBe("Please enter your name.");
+  });
+
+  test("enforces the length limits", () => {
+    expect(error({ display_name: "x".repeat(PROFILE_LIMITS.name + 1) })).toContain("name");
+    expect(error({ university: "x".repeat(PROFILE_LIMITS.university + 1) })).toContain(
+      "University",
+    );
+    expect(error({ major: "x".repeat(PROFILE_LIMITS.major + 1) })).toContain("Major");
+    expect(error({ bio: "x".repeat(PROFILE_LIMITS.bio + 1) })).toContain("bio");
+    expect(error({ bio: "x".repeat(PROFILE_LIMITS.bio) })).toBeNull();
+  });
+
+  test("an empty time zone means UTC", () => {
+    expect(ok({ timezone: "" }).timezone).toBe("UTC");
+    expect(ok({ timezone: "   " }).timezone).toBe("UTC");
+  });
+
+  test("rejects a time zone that doesn't exist", () => {
+    expect(error({ timezone: "Mars/Olympus" })).toContain("time zone");
+    expect(error({ timezone: "not a zone" })).toContain("time zone");
+  });
+
+  test("recognises real time zones", () => {
+    for (const z of ["UTC", "America/Toronto", "Europe/London", "Asia/Tokyo", "Australia/Sydney"]) {
+      expect(isValidTimeZone(z)).toBe(true);
+    }
+    expect(isValidTimeZone("Nope/Nowhere")).toBe(false);
+  });
+
+  test("passes the Discover choice through", () => {
+    expect(ok({ discoverable: false }).discoverable).toBe(false);
+  });
+});

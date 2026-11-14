@@ -6,6 +6,7 @@ import {
   checkAvatarFile,
   clampLevel,
   rangesFromRows,
+  type CleanProfile,
   type CourseInput,
   type Range,
   type SkillInput,
@@ -146,4 +147,20 @@ export async function removeAvatar(userId: string, previous: string | null | und
     .eq("id", userId);
   if (error) throw profileError(error);
   await deleteAvatarFile(previous);
+}
+
+/**
+ * Saves the profile fields. It creates the row if it is somehow missing (an update would silently change
+ * nothing) and checks that a row really came back, so a "saved" message always means it was saved.
+ */
+export async function saveProfile(userId: string, fields: CleanProfile): Promise<void> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .upsert({ id: userId, ...fields, updated_at: new Date().toISOString() }, { onConflict: "id" })
+    .select("id")
+    .maybeSingle();
+  if (error) throw profileError(error);
+  if (!data) {
+    throw new Error("Your profile couldn't be saved. Please sign out, sign back in and try again.");
+  }
 }

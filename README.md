@@ -118,7 +118,7 @@ bun run dev       # Start the development server (port 3000)
 bun run build     # Production build
 bun run lint      # ESLint
 bun run format    # Prettier (writes files)
-bun test          # Business-rule tests in tests/ (requires Bun)
+bun test          # All tests in tests/ (requires Bun): business rules and component tests
 ```
 
 ## Project layout
@@ -168,6 +168,15 @@ These rules keep the app secure and predictable. Please keep to them when changi
 | Aditi | Backend and server logic, authentication flow, authorization checks, business rules |
 | Krishan | Testing and quality assurance, accessibility, permission and security testing |
 | Amogh | Database schema, migrations, constraints, RLS and storage policies, data integrity |
+
+## Tests
+
+`bun test` runs everything in `tests/`:
+
+- **Business rules** (`tests/*.test.ts`): ranking, profile validation, team permissions, Markdown cleanup.
+- **Settings screens** (`tests/settings/*.test.tsx`): the Profile, Courses & skills, Availability, Appearance and Account sections, driven like a student would use them (typing, clicking, uploading a photo, switching tabs). They run in a simulated browser against an in-memory stand-in for Supabase (`tests/helpers/fake-supabase.ts`), so they need no network, database or login.
+
+The setup that makes this work is in `bunfig.toml` and `tests/setup/`.
 
 ## Troubleshooting
 

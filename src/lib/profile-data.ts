@@ -291,3 +291,79 @@ export function profileCompleteness(f: ProfileFacts): Completeness {
     missing: checks.filter(([ok]) => !ok).map(([, label]) => label),
   };
 }
+
+/* ------------------------------ Profile form ------------------------------ */
+
+export const PROFILE_LIMITS = { name: 80, university: 120, major: 120, bio: 500 } as const;
+
+export type ProfileForm = {
+  display_name: string;
+  university: string;
+  major: string;
+  bio: string;
+  timezone: string;
+  discoverable: boolean;
+};
+
+export type CleanProfile = {
+  display_name: string;
+  university: string | null;
+  major: string | null;
+  bio: string | null;
+  timezone: string;
+  discoverable: boolean;
+};
+
+/** True for a real IANA time zone such as "America/Toronto" or "UTC". */
+export function isValidTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Checks and tidies the profile form before it is saved. Blank optional fields become null. */
+export function validateProfile(
+  form: ProfileForm,
+): { ok: true; value: CleanProfile } | { ok: false; error: string } {
+  const name = tidy(form.display_name);
+  if (!name) return { ok: false, error: "Please enter your name." };
+  if (name.length > PROFILE_LIMITS.name) {
+    return { ok: false, error: `Your name can be at most ${PROFILE_LIMITS.name} characters.` };
+  }
+  const university = tidy(form.university);
+  if (university.length > PROFILE_LIMITS.university) {
+    return {
+      ok: false,
+      error: `University can be at most ${PROFILE_LIMITS.university} characters.`,
+    };
+  }
+  const major = tidy(form.major);
+  if (major.length > PROFILE_LIMITS.major) {
+    return { ok: false, error: `Major can be at most ${PROFILE_LIMITS.major} characters.` };
+  }
+  const bio = form.bio.trim();
+  if (bio.length > PROFILE_LIMITS.bio) {
+    return { ok: false, error: `Your bio can be at most ${PROFILE_LIMITS.bio} characters.` };
+  }
+  const timezone = form.timezone.trim() || "UTC";
+  if (!isValidTimeZone(timezone)) {
+    return {
+      ok: false,
+      error: "That time zone isn't recognised. Try something like America/Toronto.",
+    };
+  }
+  return {
+    ok: true,
+    value: {
+      display_name: name,
+      university: university || null,
+      major: major || null,
+      bio: bio || null,
+      timezone,
+      discoverable: form.discoverable,
+    },
+  };
+}

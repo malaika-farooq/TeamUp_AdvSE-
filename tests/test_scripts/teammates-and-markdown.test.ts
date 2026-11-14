@@ -1,7 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { factualReason, matchWantedSkills, rankCandidates, type CandidateFacts } from "../src/lib/teammate-ranking";
-import { tidyMarkdown } from "../src/lib/markdown";
-import { nextOccurrence, pickSessionSlots, rankPartners, workloadLevel } from "../src/lib/partner-ranking";
+import {
+  factualReason,
+  matchWantedSkills,
+  rankCandidates,
+  type CandidateFacts,
+} from "../../src/lib/teammate-ranking";
+import { tidyMarkdown } from "../../src/lib/markdown";
+import {
+  nextOccurrence,
+  pickSessionSlots,
+  rankPartners,
+  workloadLevel,
+} from "../../src/lib/partner-ranking";
 
 const person = (id: string, over: Partial<CandidateFacts> = {}): CandidateFacts => ({
   id,
@@ -15,7 +25,10 @@ const person = (id: string, over: Partial<CandidateFacts> = {}): CandidateFacts 
 
 describe("Teammate ideas ranking", () => {
   test("returns at most four candidates", () => {
-    const ranked = rankCandidates(["a", "b", "c", "d", "e", "f"].map((id) => person(id)), []);
+    const ranked = rankCandidates(
+      ["a", "b", "c", "d", "e", "f"].map((id) => person(id)),
+      [],
+    );
     expect(ranked).toHaveLength(4);
   });
 
@@ -43,13 +56,17 @@ describe("Teammate ideas ranking", () => {
   });
 
   test("fallback reason only mentions facts that exist", () => {
-    expect(factualReason({ sharedCourses: [], newSkills: ["Design"], overlapMinutes: 0 })).toBe("Adds Design.");
+    expect(factualReason({ sharedCourses: [], newSkills: ["Design"], overlapMinutes: 0 })).toBe(
+      "Adds Design.",
+    );
   });
 });
 
 describe("Progress summary Markdown", () => {
   test("bold with spaces inside the stars becomes real bold", () => {
-    expect(tidyMarkdown("1 of 5 done (**Do Homework 1 **).")).toBe("1 of 5 done (**Do Homework 1**).");
+    expect(tidyMarkdown("1 of 5 done (**Do Homework 1 **).")).toBe(
+      "1 of 5 done (**Do Homework 1**).",
+    );
   });
 
   test("a heading glued to the line above gets its own line", () => {
@@ -74,7 +91,11 @@ describe("wanted skills", () => {
 });
 
 describe("study partner ranking", () => {
-  const w = (openTasks: number, dueSoon = 0, sessionsWeek = 0) => ({ openTasks, dueSoon, sessionsWeek });
+  const w = (openTasks: number, dueSoon = 0, sessionsWeek = 0) => ({
+    openTasks,
+    dueSoon,
+    sessionsWeek,
+  });
   const p = (id: string, over = {}) => ({
     id,
     name: id,
@@ -120,8 +141,17 @@ describe("study partner ranking", () => {
   });
 
   test("requested times filter out students who are not free then, and avoidHeavy drops heavy loads", () => {
-    const list = [p("free", { windowMinutes: 120 }), p("busyTime", { windowMinutes: 0 }), p("heavy", { windowMinutes: 120, workload: w(5, 3, 2) })];
-    expect(rankPartners(list, 5, { requireWindow: true }).map((x) => x.id)).toEqual(["free", "heavy"]);
-    expect(rankPartners(list, 5, { requireWindow: true, avoidHeavy: true }).map((x) => x.id)).toEqual(["free"]);
+    const list = [
+      p("free", { windowMinutes: 120 }),
+      p("busyTime", { windowMinutes: 0 }),
+      p("heavy", { windowMinutes: 120, workload: w(5, 3, 2) }),
+    ];
+    expect(rankPartners(list, 5, { requireWindow: true }).map((x) => x.id)).toEqual([
+      "free",
+      "heavy",
+    ]);
+    expect(
+      rankPartners(list, 5, { requireWindow: true, avoidHeavy: true }).map((x) => x.id),
+    ).toEqual(["free"]);
   });
 });
