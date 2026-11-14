@@ -54,7 +54,7 @@ const features = [
   },
 ];
 
-function Landing() {
+export function Landing() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
 

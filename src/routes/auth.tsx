@@ -34,7 +34,7 @@ function safePath(value?: string) {
   return value;
 }
 
-function AuthPage() {
+export function AuthPage() {
   const search = Route.useSearch();
   const navigate = useNavigate();
   const { user, loading } = useAuth();
@@ -107,12 +107,22 @@ function AuthPage() {
   }
 
   async function google() {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: window.location.origin },
-    });
-    if (error) toast.error("Google sign-in is unavailable right now.");
-    // On success the browser is redirected to Google, then back here.
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: window.location.origin },
+      });
+      if (error) {
+        toast.error(`Google sign-in isn't available: ${error.message}`);
+      }
+      // On success the browser is sent to Google, then back to this site.
+    } catch (err) {
+      toast.error(
+        err instanceof Error && /failed to fetch/i.test(err.message)
+          ? "Couldn't reach the server. Check the Supabase settings of this deployment."
+          : "Google sign-in isn't available right now.",
+      );
+    }
   }
 
   return (

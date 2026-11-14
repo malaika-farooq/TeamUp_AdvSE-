@@ -371,6 +371,11 @@ function TopBar() {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
               <p className="text-sm font-semibold">{profile?.display_name ?? "Student"}</p>
+              {(profile?.university || profile?.major) && (
+                <p className="truncate text-xs font-normal text-muted-foreground">
+                  {[profile?.major, profile?.university].filter(Boolean).join(" · ")}
+                </p>
+              )}
               <p className="truncate text-xs font-normal text-muted-foreground">{user?.email}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />

@@ -28,6 +28,9 @@ export function createFake(userId = "user-1") {
   const rpcHandlers: Record<string, (args: Record<string, unknown>) => Result> = {};
   const authErrors: Record<string, DbError> = {};
   const storageErrors: Record<string, DbError> = {};
+  const authSession: Record<string, unknown> = {};
+  const asError = (e: DbError) => Object.assign(new Error(e.message), e);
+  const authThrows: Record<string, Error> = {};
 
   const clone = <T>(v: T): T => (v === undefined ? v : (JSON.parse(JSON.stringify(v)) as T));
 
@@ -206,8 +209,34 @@ export function createFake(userId = "user-1") {
     auth: {
       updateUser: async (args: unknown) => {
         authCalls.push({ op: "updateUser", args: clone(args) });
-        const err = authErrors["updateUser"];
+        const err = authErrors["updateUser"] && asError(authErrors["updateUser"]!);
         return err ? { data: null, error: err } : { data: { user: {} }, error: null };
+      },
+      signUp: async (args: unknown) => {
+        authCalls.push({ op: "signUp", args: clone(args) });
+        const err = authErrors["signUp"] && asError(authErrors["signUp"]!);
+        return err
+          ? { data: { session: null, user: null }, error: err }
+          : { data: { session: authSession["signUp"] ?? null, user: {} }, error: null };
+      },
+      signInWithPassword: async (args: unknown) => {
+        authCalls.push({ op: "signInWithPassword", args: clone(args) });
+        const err = authErrors["signInWithPassword"] && asError(authErrors["signInWithPassword"]!);
+        return err ? { data: null, error: err } : { data: { session: {} }, error: null };
+      },
+      signInWithOAuth: async (args: unknown) => {
+        authCalls.push({ op: "signInWithOAuth", args: clone(args) });
+        const err = authErrors["signInWithOAuth"] && asError(authErrors["signInWithOAuth"]!);
+        if (authThrows["signInWithOAuth"]) throw authThrows["signInWithOAuth"];
+        return err
+          ? { data: null, error: err }
+          : { data: { url: "https://accounts.google.com/o/oauth2" }, error: null };
+      },
+      resetPasswordForEmail: async (...args: unknown[]) => {
+        authCalls.push({ op: "resetPasswordForEmail", args: clone(args) });
+        const err =
+          authErrors["resetPasswordForEmail"] && asError(authErrors["resetPasswordForEmail"]!);
+        return err ? { data: null, error: err } : { data: {}, error: null };
       },
     },
   };
@@ -233,6 +262,14 @@ export function createFake(userId = "user-1") {
     },
     failAuth(op: string, error: DbError) {
       authErrors[op] = error;
+    },
+    /** Make signUp return a session straight away (email confirmation turned off). */
+    signUpReturnsSession() {
+      authSession["signUp"] = { access_token: "t" };
+    },
+    /** Make a sign-in call throw, as a network failure does ("Failed to fetch"). */
+    throwAuth(op: string, error: Error) {
+      authThrows[op] = error;
     },
     failStorage(op: "upload" | "remove", error: DbError) {
       storageErrors[op] = error;

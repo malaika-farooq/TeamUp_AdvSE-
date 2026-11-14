@@ -22,6 +22,7 @@ type Harness = {
     toggle: ReturnType<typeof mock>;
   };
   sample: { create: ReturnType<typeof mock>; remove: ReturnType<typeof mock> };
+  search: Record<string, unknown>;
 };
 
 export const h = {} as Harness;
@@ -33,6 +34,7 @@ export function resetHarness(user: TestUser | null = defaultUser()) {
   h.navigate = mock(() => {});
   h.toast = { success: mock(), error: mock(), warning: mock(), message: mock() };
   h.theme = { theme: "light", setTheme: mock(), toggle: mock() };
+  h.search = {};
   h.sample = { create: mock(async () => ({})), remove: mock(async () => ({})) };
   return h;
 }

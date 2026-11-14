@@ -103,6 +103,13 @@ export function avatarSrc(path: string | null | undefined): string | undefined {
   return supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
 }
 
+/** A temporary link that works even when the avatars bucket is private. */
+export async function signedAvatarUrl(path: string): Promise<string | null> {
+  if (/^https?:\/\//i.test(path)) return path;
+  const { data, error } = await supabase.storage.from("avatars").createSignedUrl(path, 3600);
+  return error ? null : (data?.signedUrl ?? null);
+}
+
 /** Validates and uploads a photo; returns the stored path. */
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
   const check = checkAvatarFile(file);
@@ -157,10 +164,20 @@ export async function saveProfile(userId: string, fields: CleanProfile): Promise
   const { data, error } = await supabase
     .from("profiles")
     .upsert({ id: userId, ...fields, updated_at: new Date().toISOString() }, { onConflict: "id" })
-    .select("id")
+    .select("id, display_name, university, major, bio, timezone, discoverable")
     .maybeSingle();
   if (error) throw profileError(error);
   if (!data) {
     throw new Error("Your profile couldn't be saved. Please sign out, sign back in and try again.");
+  }
+  // Trust, but verify: what the database kept must match what was sent.
+  const kept = data as Record<string, unknown>;
+  const lost = (Object.keys(fields) as (keyof CleanProfile)[]).filter(
+    (k) => k in kept && kept[k] !== fields[k],
+  );
+  if (lost.length > 0) {
+    throw new Error(
+      `The database didn't keep your ${lost.join(", ").replace("display_name", "name")}. Please try again, or ask the project owner to check the profiles table.`,
+    );
   }
 }

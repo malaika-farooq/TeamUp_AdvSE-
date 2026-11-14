@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { readAuthUrlError, withoutAuthError } from "@/lib/auth-url";
 
 type AuthValue = {
   session: Session | null;
@@ -19,6 +21,14 @@ const AuthContext = createContext<AuthValue>({
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // A failed Google sign-in comes back with the reason in the address: tell the student, then tidy the address.
+  useEffect(() => {
+    const problem = readAuthUrlError(window.location.href);
+    if (!problem) return;
+    toast.error(problem.message, { duration: 10000 });
+    window.history.replaceState(null, "", withoutAuthError(window.location.href));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -39,14 +49,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{
+    <AuthContext.Provider
+      value={{
         session,
         user: session?.user ?? null,
         loading,
         signOut: async () => {
           await supabase.auth.signOut();
         },
-      }}>
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
