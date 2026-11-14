@@ -958,6 +958,10 @@ export type Database = {
         Args: { _candidates: string[] }
         Returns: { candidate_id: string; open_tasks: number; due_soon: number; sessions_week: number }[]
       }
+      refresh_deadline_notifications: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       team_availability: {
         Args: { _team: string }
         Returns: { user_id: string; weekday: number; start_minute: number; end_minute: number }[]

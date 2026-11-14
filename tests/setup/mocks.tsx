@@ -95,14 +95,17 @@ mock.module("@/components/app/AppShell", () => ({
   AppShell: ({
     title,
     description,
+    actions,
     children,
   }: {
     title: string;
     description?: string;
+    actions?: ReactNode;
     children?: ReactNode;
   }) => (
     <main>
       <h1>{title}</h1>
+      {actions}
       {description && <p data-testid="page-description">{description}</p>}
       {children}
     </main>

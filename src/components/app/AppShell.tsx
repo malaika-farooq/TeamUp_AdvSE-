@@ -3,7 +3,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bell,
   CalendarDays,
   Compass,
   LayoutDashboard,
@@ -25,8 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BrandMark } from "@/components/app/BrandMark";
 import { UserAvatar } from "@/components/app/profile/UserAvatar";
-import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,13 +33,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
-import { fetchNotifications, fetchProfile } from "@/lib/queries";
+import { fetchProfile } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 import { AIHelper } from "@/components/app/ai/AIHelper";
+import { NotificationsBell } from "@/components/app/notifications/NotificationCenter";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -222,41 +219,6 @@ function TopBar() {
     enabled: !!user,
   });
 
-  const { data: notifications = [] } = useQuery({
-    queryKey: ["notifications"],
-    queryFn: fetchNotifications,
-    enabled: !!user,
-  });
-
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel("notifications-topbar")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notifications", filter: `user_id=eq.${user.id}` },
-        () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, queryClient]);
-
-  const unread = notifications.filter((n) => !n.read_at);
-
-  async function markAllRead() {
-    if (!unread.length) return;
-    await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .in(
-        "id",
-        unread.map((n) => n.id),
-      );
-    queryClient.invalidateQueries({ queryKey: ["notifications"] });
-  }
-
   async function signOut() {
     await queryClient.cancelQueries();
     queryClient.clear();
@@ -307,52 +269,7 @@ function TopBar() {
       </form>
 
       <div className="ml-auto flex items-center gap-1">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
-              <Bell className="size-5" />
-              {unread.length > 0 && (
-                <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                  {unread.length > 9 ? "9+" : unread.length}
-                </span>
-              )}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-80 p-0">
-            <div className="flex items-center justify-between border-b border-border p-3">
-              <p className="text-sm font-semibold">Notifications</p>
-              <Button variant="ghost" size="sm" onClick={markAllRead} disabled={!unread.length}>
-                Mark all read
-              </Button>
-            </div>
-            <ScrollArea className="max-h-80">
-              {notifications.length === 0 ? (
-                <p className="p-6 text-center text-sm text-muted-foreground">
-                  You're all caught up.
-                </p>
-              ) : (
-                <ul className="divide-y divide-border">
-                  {notifications.map((n) => (
-                    <li key={n.id} className={cn("p-3", !n.read_at && "bg-primary/5")}>
-                      <p className="text-sm font-medium">{n.title}</p>
-                      {n.body && <p className="text-xs text-muted-foreground">{n.body}</p>}
-                      <div className="mt-1 flex items-center gap-2">
-                        <span className="text-[11px] text-muted-foreground">
-                          {new Date(n.created_at).toLocaleString()}
-                        </span>
-                        {!n.read_at && (
-                          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">
-                            New
-                          </Badge>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </ScrollArea>
-          </PopoverContent>
-        </Popover>
+        <NotificationsBell />
 
         <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
           {theme === "dark" ? <Sun className="size-5" /> : <Moon className="size-5" />}
