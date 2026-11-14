@@ -28,6 +28,7 @@ import {
 import { AppShell } from "@/components/app/AppShell";
 import { TaskBoard } from "@/components/app/TaskBoard";
 import { SessionsPanel } from "@/components/app/SessionsPanel";
+import { MeetingTimes } from "@/components/app/teams/MeetingTimes";
 import { ResourcesPanel } from "@/components/app/ResourcesPanel";
 import { CardSkeletons, EmptyState, ErrorState } from "@/components/app/states";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -321,6 +322,7 @@ function TeamWorkspace() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="tasks">Task Board</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="meeting-times">Meeting times</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
           <TabsTrigger value="members">
             Members
@@ -419,6 +421,10 @@ function TeamWorkspace() {
             teams={[team]}
             defaultTeamId={teamId}
           />
+        </TabsContent>
+
+        <TabsContent value="meeting-times">
+          <MeetingTimes teamId={team.id} teamName={team.name} />
         </TabsContent>
 
         <TabsContent value="resources">

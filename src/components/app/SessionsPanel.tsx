@@ -51,6 +51,8 @@ import {
 } from "@/lib/queries";
 import { TaskPanel, taskErrorMessage } from "@/components/app/TaskBoard";
 import { cn } from "@/lib/utils";
+import { bestMeetingTimes, inViewerZone } from "@/lib/meeting-times";
+import { loadTeamAvailability } from "@/lib/team-availability";
 
 type TeamLike = Pick<Team, "id" | "name">;
 
@@ -693,33 +695,19 @@ function MeetingFinder({
     queryKey: ["find-time", teamId, duration],
     enabled: open && !!teamId,
     queryFn: async () => {
-      const members = await fetchTeamMembers(teamId);
-      const ids = members.map((m) => m.user_id);
-      const { data: slots, error } = await supabase
-        .from("availability_slots")
-        .select("*")
-        .in("user_id", ids);
-      if (error) throw new Error(error.message);
-      const need = Number(duration);
-      const buckets = new Map<string, Set<string>>();
-      (slots ?? []).forEach((s) => {
-        for (let m = s.start_minute; m + need <= s.end_minute; m += 30) {
-          const key = `${s.weekday}:${m}`;
-          if (!buckets.has(key)) buckets.set(key, new Set());
-          buckets.get(key)!.add(s.user_id);
-        }
-      });
-      const options = Array.from(buckets.entries())
-        .map(([key, users]) => {
-          const parts = key.split(":").map(Number);
-          return { weekday: parts[0] ?? 0, minute: parts[1] ?? 0, count: users.size };
-        })
-        .sort((a, b) => b.count - a.count || a.weekday - b.weekday || a.minute - b.minute)
-        .slice(0, 8);
+      // team_availability lets teammates read each other's free time (migration 0010); a plain select
+      // would only ever return the signed-in student's own rows.
+      const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const members = inViewerZone(await loadTeamAvailability(teamId), zone);
+      const options = bestMeetingTimes(members, Number(duration), 8).map((w) => ({
+        weekday: w.weekday,
+        minute: w.start,
+        count: w.freeIds.length,
+      }));
       return {
         options,
-        total: ids.length,
-        withAvailability: new Set((slots ?? []).map((s) => s.user_id)).size,
+        total: members.length,
+        withAvailability: members.filter((m) => m.ranges.length > 0).length,
       };
     },
   });

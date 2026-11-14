@@ -5,6 +5,7 @@ TeamUp is a collaborative study and team-planning web app. Students create or jo
 ## Features
 
 - **Profiles:** profile photo, enrolled courses, skills with a 1–5 level, and weekly availability (quick Morning/Afternoon/Evening blocks or exact times), editable any time in Settings, with a completeness meter.
+- **Meeting times:** every member marks weekly free time; the team's **Meeting times** tab shows a free-time map, ranks the best common times for a 30 min to 2 h meeting (most people free first, with who can't make it), converts teammates' time zones, reminds people who haven't added any, and books the chosen time as a team session in one click.
 - **Accounts:** email/password and Google sign-in, plus a three-step onboarding.
 - **Teams:** public or private teams with owner / admin / member roles, plus a full invitation and request workflow (see below).
 - **Tasks and calendar:** priorities, due dates, assignees, checklists, comments, study sessions with RSVP.
@@ -77,10 +78,11 @@ Migrations are plain SQL files in `drizzle/migrations/`. Run them **in order** i
 | `0007_profile_completion.sql` | Storage buckets (`avatars`, `team-files`), de-duplicates skills/courses, all-or-nothing save functions for courses, skills and availability, partner photos |
 | `0008_team_workflow.sql` | Team roles and the invitation / join-request workflow. All membership, role, invitation and request changes now go through checked functions (before, any student could write those tables directly). Run after 0007 |
 | `0009_member_permissions.sql` | Role-based permissions for team content: members can only change their own tasks/sessions/notes/files, admins manage everything except visibility and deletion, authorship can't be rewritten. Run after 0008 |
+| `0010_team_availability.sql` | Lets team members read each other's weekly free time (nothing else) and send a once-a-day reminder to teammates who haven't marked any. Powers the team's **Meeting times** tab. Run after 0009 |
 
 If study-partner features say matching "isn't set up in the database yet", migrations 0005 and 0006 have not been run.
 
-If saving courses, skills, availability or a profile photo says "isn't set up", migration 0007 has not been run. If team invitations, join requests or role changes say "isn't set up", migration 0008 has not been run. Migration 0009 has no screen message: if members can still edit or delete each other's items, run it.
+If saving courses, skills, availability or a profile photo says "isn't set up", migration 0007 has not been run. If team invitations, join requests or role changes say "isn't set up", migration 0008 has not been run. If the Meeting times tab says "aren't set up", migration 0010 has not been run. Migration 0009 has no screen message: if members can still edit or delete each other's items, run it.
 
 **Test data (optional):** open `supabase/seed.sql`, set `my_email` to the email of an account you have already signed up with, then run it in the SQL editor. It creates sample students (`@teamup.test`), courses, skills, availability, teams, tasks, sessions, partner requests and notifications around your account. Cleanup deletes the `@teamup.test` users and the seeded teams.
 

@@ -958,6 +958,14 @@ export type Database = {
         Args: { _candidates: string[] }
         Returns: { candidate_id: string; open_tasks: number; due_soon: number; sessions_week: number }[]
       }
+      team_availability: {
+        Args: { _team: string }
+        Returns: { user_id: string; weekday: number; start_minute: number; end_minute: number }[]
+      }
+      nudge_team_availability: {
+        Args: { _team: string }
+        Returns: number
+      }
       group_free_windows: {
         Args: { _users: string[] }
         Returns: { weekday: number; start_minute: number; end_minute: number; free_count: number }[]
