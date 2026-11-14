@@ -84,6 +84,44 @@ git checkout latest
 bun install --frozen-lockfile        # or: npm install
 ```
 
+### Dependencies
+
+Everything below is declared in `package.json` and installed by the command above; you do not install these by hand. The only things you must set up yourself are the **system requirements** and **external services**.
+
+**System requirements**
+
+| Requirement      | Notes                                                                                                   |
+| ---------------- | ------------------------------------------------------------------------------------------------------- |
+| Git              | To clone the repository                                                                                 |
+| Bun 1.4+ **or** Node.js 20.19+ with npm | One of the two is required to install packages and run scripts (`bun test` is used for tests) |
+| Internet access  | Needed for Supabase, the NVIDIA NIM API and the Google Fonts stylesheet                                 |
+| Modern browser   | Current Chrome, Edge, Firefox or Safari                                                                 |
+
+**External services** (see [Configuration](#5-configuration))
+
+| Service                                         | Required?                                            |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| Supabase project (database, auth, file storage) | Yes. Run the migrations in `drizzle/migrations/`     |
+| NVIDIA NIM API key                              | Optional. Only the AI features need it               |
+| Google OAuth client                             | Optional. Only for "Continue with Google"            |
+
+**Main runtime packages**
+
+| Area             | Packages                                                                                              |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| Framework        | `react`, `react-dom`, `@tanstack/react-start`, `@tanstack/react-router`, `@tanstack/react-query`      |
+| Backend / data   | `@supabase/supabase-js`, `zod`                                                                        |
+| AI               | `ai`, `@ai-sdk/react`, `streamdown`, `@streamdown/code`, `use-stick-to-bottom`                        |
+| Styling / UI     | `tailwindcss`, `@tailwindcss/vite`, `tw-animate-css`, `@radix-ui/react-*`, `class-variance-authority`, `clsx`, `tailwind-merge`, `cmdk`, `vaul`, `sonner` |
+| Icons / motion   | `lucide-react`, `motion`                                                                              |
+| Forms / dates    | `react-hook-form`, `@hookform/resolvers`, `date-fns`, `react-day-picker`, `input-otp`                 |
+| Boards / charts  | `@dnd-kit/core`, `@dnd-kit/sortable`, `recharts`, `embla-carousel-react`, `react-resizable-panels`    |
+| Utilities        | `nanoid`                                                                                              |
+
+**Development and test packages:** `vite`, `@vitejs/plugin-react`, `nitro`, `typescript`, `eslint` (with its plugins), `prettier`, `drizzle-kit`, `drizzle-orm`, `postgres`, `happy-dom`, `@happy-dom/global-registrator` and `@testing-library/*`.
+
+**Extra package for the database tests only (not in `package.json`):** `@electric-sql/pglite` (`npm i -D @electric-sql/pglite`). Without it those tests are skipped. See [Automated tests](#9-automated-tests).
+
 ## 5. Configuration
 
 Copy the template and fill in your own values. **Never commit `.env`, and never put a secret in a `VITE_*` variable (those reach the browser).**
