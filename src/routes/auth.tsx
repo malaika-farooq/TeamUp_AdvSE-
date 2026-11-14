@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { Loader2 } from "lucide-react";
+import { AuthShowcase } from "@/components/app/AuthShowcase";
 import { BrandMark } from "@/components/app/BrandMark";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -132,6 +133,7 @@ export function AuthPage() {
           <BrandMark className="size-8" />
           TeamUp
         </Link>
+        <AuthShowcase />
         <div>
           <h2 className="max-w-sm text-3xl font-bold leading-tight">
             Study together. Plan smarter. Finish stronger.

@@ -232,3 +232,37 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Decorative background blobs (see components/app/AnimatedBlobs.tsx). Motion is
+   removed entirely for people who prefer reduced motion. */
+@keyframes blob-float-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(30px, -24px, 0) scale(1.08); }
+}
+@keyframes blob-float-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-34px, 26px, 0) scale(0.94); }
+}
+.animate-blob-a { animation: blob-float-a 14s ease-in-out infinite; }
+.animate-blob-b { animation: blob-float-b 18s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-blob-a,
+  .animate-blob-b { animation: none !important; }
+}
+
+/* Auth showcase arrows: dashes travel along the path; static when reduced motion. */
+@keyframes arrow-flow { to { stroke-dashoffset: -28; } }
+.auth-arrow-line { animation: arrow-flow 1.6s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .auth-arrow-line { animation: none !important; }
+}
+
+/* Gentle floating motion for decorative landing-page elements. */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0) rotate(var(--float-rot, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--float-rot, 0deg)); }
+}
+.animate-float { animation: float-y 5s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-float { animation: none !important; }
+}
