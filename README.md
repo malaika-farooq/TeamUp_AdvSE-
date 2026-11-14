@@ -76,10 +76,11 @@ Migrations are plain SQL files in `drizzle/migrations/`. Run them **in order** i
 | `0006_partner_time_preferences.sql` | Time-window preference matching |
 | `0007_profile_completion.sql` | Storage buckets (`avatars`, `team-files`), de-duplicates skills/courses, all-or-nothing save functions for courses, skills and availability, partner photos |
 | `0008_team_workflow.sql` | Team roles and the invitation / join-request workflow. All membership, role, invitation and request changes now go through checked functions (before, any student could write those tables directly). Run after 0007 |
+| `0009_member_permissions.sql` | Role-based permissions for team content: members can only change their own tasks/sessions/notes/files, admins manage everything except visibility and deletion, authorship can't be rewritten. Run after 0008 |
 
 If study-partner features say matching "isn't set up in the database yet", migrations 0005 and 0006 have not been run.
 
-If saving courses, skills, availability or a profile photo says "isn't set up", migration 0007 has not been run. If team invitations, join requests or role changes say "isn't set up", migration 0008 has not been run.
+If saving courses, skills, availability or a profile photo says "isn't set up", migration 0007 has not been run. If team invitations, join requests or role changes say "isn't set up", migration 0008 has not been run. Migration 0009 has no screen message: if members can still edit or delete each other's items, run it.
 
 **Test data (optional):** open `supabase/seed.sql`, set `my_email` to the email of an account you have already signed up with, then run it in the SQL editor. It creates sample students (`@teamup.test`), courses, skills, availability, teams, tasks, sessions, partner requests and notifications around your account. Cleanup deletes the `@teamup.test` users and the seeded teams.
 
@@ -90,11 +91,20 @@ If saving courses, skills, availability or a profile photo says "isn't set up", 
 
 ## How teams, invitations and requests work
 
-| Who | Can do |
-| --- | --- |
-| **Owner** | Everything: invite members or admins, answer join requests, change roles, make someone else the owner, remove anyone, delete the team |
-| **Admin** | Invite members, answer join requests, remove plain members |
-| **Member** | Use the team's tasks, sessions and resources; leave |
+| What | Owner | Admin | Member |
+| --- | :---: | :---: | :---: |
+| See tasks, sessions, files and activity | Yes | Yes | Yes |
+| Create tasks, sessions and notes, upload files, comment | Yes | Yes | Yes |
+| Edit a task | Any | Any | Own, or assigned to them |
+| Delete a task | Any | Any | Own |
+| Edit or delete a session, note or file | Any | Any | Own |
+| Delete a comment | Any | Any | Own |
+| Invite people, answer join requests, remove members | Yes | Yes (admins can only remove plain members) | No |
+| Edit team details | Yes | Yes | No |
+| Change admin roles, transfer ownership | Yes | No | No |
+| Make the team public or private, delete the team | Yes | No | No |
+
+The Members tab shows this table with your own role highlighted, and the screens hide or disable anything your role can't do.
 
 - **Join requests:** students ask to join a *public* team from Discover with an optional message. Owners and admins are notified, see who is asking (name, photo, courses, skills) and approve or decline; the student is notified. The student can cancel a pending request, and can ask again 7 days after a decline.
 - **Invitations:** owners and admins invite a discoverable student by name (from the team's Members tab, Discover, or the AI "Teammate ideas" tool). The student sees it in **My Teams** and in notifications and can accept or decline. A shareable invitation link works once and expires after 7 days; only the owner can create admin invitations.

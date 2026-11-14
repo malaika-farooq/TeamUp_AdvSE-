@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Bell,
-  BookOpen,
   CalendarDays,
   Compass,
   LayoutDashboard,
@@ -24,6 +23,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { BrandMark } from "@/components/app/BrandMark";
 import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -95,14 +95,17 @@ export function AppShell({
         )}
       >
         <div className="flex h-16 items-center gap-2 px-4">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <BookOpen className="size-4" />
-          </span>
+          <BrandMark className="size-9" />
           {!collapsed && <span className="font-display text-lg font-bold">TeamUp</span>}
         </div>
         <nav className="flex-1 space-y-1 px-3 py-2">
           {NAV.map((item) => (
-            <NavItem key={item.to} item={item} active={pathname.startsWith(item.to)} collapsed={collapsed} />
+            <NavItem
+              key={item.to}
+              item={item}
+              active={pathname.startsWith(item.to)}
+              collapsed={collapsed}
+            />
           ))}
         </nav>
         <div className="p-3">
@@ -113,13 +116,19 @@ export function AppShell({
             className="w-full justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
             aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
           >
-            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+            {collapsed ? (
+              <PanelLeftOpen className="size-4" />
+            ) : (
+              <PanelLeftClose className="size-4" />
+            )}
             {!collapsed && <span className="ml-2">Collapse</span>}
           </Button>
         </div>
       </aside>
 
-      <div className={cn("transition-[padding] duration-200", collapsed ? "lg:pl-[76px]" : "lg:pl-64")}>
+      <div
+        className={cn("transition-[padding] duration-200", collapsed ? "lg:pl-[76px]" : "lg:pl-64")}
+      >
         <TopBar />
         <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 lg:pb-12">
           <motion.div
@@ -269,7 +278,12 @@ function TopBar() {
           </SheetTitle>
           <nav className="space-y-1 p-3">
             {NAV.map((item) => (
-              <NavItem key={item.to} item={item} active={pathname.startsWith(item.to)} collapsed={false} />
+              <NavItem
+                key={item.to}
+                item={item}
+                active={pathname.startsWith(item.to)}
+                collapsed={false}
+              />
             ))}
           </nav>
         </SheetContent>

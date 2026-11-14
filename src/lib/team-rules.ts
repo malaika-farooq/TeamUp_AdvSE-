@@ -87,3 +87,76 @@ export const ROLE_HELP: Record<Role, string> = {
   admin: "Invites people, answers join requests and removes members.",
   member: "Works on tasks, sessions and resources.",
 };
+
+/* ------------------------------ Team content ------------------------------ */
+// The same rules the database enforces for tasks, sessions, resources, comments and team settings
+// (migration 0009_member_permissions.sql), so screens only offer what will work.
+
+type Who = { created_by: string; assignee_id?: string | null };
+
+/** Owners and admins can change any task; members only tasks they created or that are assigned to them. */
+export function canEditTask(
+  role: Role | null | undefined,
+  userId: string | undefined,
+  task: Who,
+): boolean {
+  if (canManage(role)) return true;
+  return !!userId && (task.created_by === userId || task.assignee_id === userId);
+}
+
+/** Deleting is stricter: being assigned a task does not let you delete it. */
+export function canDeleteTask(
+  role: Role | null | undefined,
+  userId: string | undefined,
+  task: Who,
+): boolean {
+  return canManage(role) || (!!userId && task.created_by === userId);
+}
+
+/** Sessions, notes, links and files: the person who made it, or an owner/admin. */
+export function canChangeItem(
+  role: Role | null | undefined,
+  userId: string | undefined,
+  item: { created_by: string },
+): boolean {
+  return canManage(role) || (!!userId && item.created_by === userId);
+}
+
+/** Anyone can delete their own comment; owners and admins can moderate. */
+export function canDeleteComment(
+  role: Role | null | undefined,
+  userId: string | undefined,
+  comment: { author_id: string },
+): boolean {
+  return canManage(role) || (!!userId && comment.author_id === userId);
+}
+
+export const canEditTeamDetails = (role: Role | null | undefined) => canManage(role);
+export const canChangeVisibility = (role: Role | null | undefined) => role === "owner";
+export const canDeleteTeam = (role: Role | null | undefined) => role === "owner";
+
+export type Level = "yes" | "own" | "no";
+
+/** The permission table shown to students (and checked against the rules above in tests). */
+export const PERMISSION_ROWS: { label: string; owner: Level; admin: Level; member: Level }[] = [
+  { label: "See tasks, sessions, files and activity", owner: "yes", admin: "yes", member: "yes" },
+  {
+    label: "Create tasks, sessions and notes, and upload files",
+    owner: "yes",
+    admin: "yes",
+    member: "yes",
+  },
+  { label: "Comment and update checklists", owner: "yes", admin: "yes", member: "yes" },
+  { label: "Edit a task", owner: "yes", admin: "yes", member: "own" },
+  { label: "Delete a task", owner: "yes", admin: "yes", member: "own" },
+  { label: "Edit or delete a session, note or file", owner: "yes", admin: "yes", member: "own" },
+  { label: "Delete a comment", owner: "yes", admin: "yes", member: "own" },
+  { label: "Invite people and answer join requests", owner: "yes", admin: "yes", member: "no" },
+  { label: "Remove members", owner: "yes", admin: "yes", member: "no" },
+  { label: "Edit team details", owner: "yes", admin: "yes", member: "no" },
+  { label: "Change admin roles and transfer ownership", owner: "yes", admin: "no", member: "no" },
+  { label: "Make the team public or private", owner: "yes", admin: "no", member: "no" },
+  { label: "Delete the team", owner: "yes", admin: "no", member: "no" },
+];
+
+export const LEVEL_TEXT: Record<Level, string> = { yes: "Yes", own: "Own only", no: "No" };

@@ -54,6 +54,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import { InviteStudentSearch } from "@/components/app/teams/InviteStudents";
+import { PermissionTable } from "@/components/app/teams/PermissionTable";
+import { TeamSettings } from "@/components/app/teams/TeamSettings";
 import { useAuth } from "@/lib/auth";
 import {
   createInviteLink,
@@ -65,13 +67,7 @@ import {
   teamJoinRequests,
   transferOwnership,
 } from "@/lib/team-queries";
-import {
-  ROLE_HELP,
-  ROLE_LABEL,
-  expiresText,
-  inviteRolesFor,
-  memberActions,
-} from "@/lib/team-rules";
+import { ROLE_LABEL, expiresText, inviteRolesFor, memberActions } from "@/lib/team-rules";
 import {
   STATUSES,
   fetchActivity,
@@ -338,6 +334,7 @@ function TeamWorkspace() {
             )}
           </TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
+          {canManage && <TabsTrigger value="settings">Settings</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="space-y-5">
@@ -496,11 +493,7 @@ function TeamWorkspace() {
               );
             })}
           </div>
-          <p className="text-xs text-muted-foreground">
-            {(["owner", "admin", "member"] as const)
-              .map((r) => `${ROLE_LABEL[r]}: ${ROLE_HELP[r]}`)
-              .join("  ")}
-          </p>
+          <PermissionTable myRole={myRole} />
 
           {canManage && (
             <>
@@ -669,6 +662,12 @@ function TeamWorkspace() {
             </>
           )}
         </TabsContent>
+
+        {canManage && (
+          <TabsContent value="settings">
+            <TeamSettings key={team.updated_at} team={team} myRole={myRole} />
+          </TabsContent>
+        )}
 
         <TabsContent value="activity">
           {(activityQuery.data ?? []).length === 0 ? (

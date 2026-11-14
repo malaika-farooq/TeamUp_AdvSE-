@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
-import { BookOpen, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { BrandMark } from "@/components/app/BrandMark";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,9 +119,7 @@ function AuthPage() {
     <div className="grid min-h-screen lg:grid-cols-2">
       <div className="hidden flex-col justify-between bg-navy p-10 text-navy-foreground lg:flex">
         <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold">
-          <span className="grid size-8 place-items-center rounded-xl bg-primary text-primary-foreground">
-            <BookOpen className="size-4" />
-          </span>
+          <BrandMark className="size-8" />
           TeamUp
         </Link>
         <div>

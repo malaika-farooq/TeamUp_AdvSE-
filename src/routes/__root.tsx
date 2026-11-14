@@ -77,14 +77,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "TeamUp — Collaborative Study & Team Planning Hub" },
+      { title: "TeamUp — Study together. Plan smarter. Finish stronger." },
       {
         name: "description",
         content:
           "TeamUp helps students plan study sessions, assign project tasks, share resources and track team progress.",
       },
+      { name: "theme-color", content: "#E8622A" },
+      { property: "og:site_name", content: "TeamUp" },
       { property: "og:type", content: "website" },
+      { property: "og:title", content: "TeamUp — Study together. Plan smarter. Finish stronger." },
+      {
+        property: "og:description",
+        content:
+          "Plan study sessions, assign project tasks, share resources and track team progress.",
+      },
+      { property: "og:image", content: "/og-image.png" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "TeamUp — Study together. Plan smarter. Finish stronger." },
+      { name: "twitter:image", content: "/og-image.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
@@ -94,7 +105,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap",
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/icon.svg", type: "image/svg+xml", sizes: "any" },
+      { rel: "icon", href: "/favicon.ico", sizes: "48x48" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
     ],
     scripts: [{ children: themeInitScript }],
   }),

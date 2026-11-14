@@ -27,6 +27,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { canChangeItem } from "@/lib/team-rules";
+import { useTeamRoles } from "@/lib/use-team-roles";
 import { EmptyState } from "@/components/app/states";
 import { MessageResponse } from "@/components/ai-elements/message";
 import { logActivity, type Resource, type Team } from "@/lib/queries";
@@ -44,6 +46,7 @@ export function ResourcesPanel({
   defaultTeamId?: string | undefined;
 }) {
   const { user } = useAuth();
+  const { roleIn } = useTeamRoles();
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<"all" | "note" | "link" | "file">("all");
   const [search, setSearch] = useState("");
@@ -173,7 +176,7 @@ export function ResourcesPanel({
                     Download
                   </Button>
                 )}
-                {r.kind === "note" && (
+                {r.kind === "note" && canChangeItem(roleIn(r.team_id), user?.id, r) && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -185,8 +188,13 @@ export function ResourcesPanel({
                     Edit
                   </Button>
                 )}
-                {(r.created_by === user?.id) && (
-                  <Button size="sm" variant="ghost" onClick={() => remove(r)}>
+                {canChangeItem(roleIn(r.team_id), user?.id, r) && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    aria-label={`Delete ${r.title}`}
+                    onClick={() => remove(r)}
+                  >
                     <Trash2 className="size-4" />
                   </Button>
                 )}
@@ -411,11 +419,7 @@ function ResourceDialog({
           {kind === "file" && !isEdit && (
             <div className="space-y-1.5">
               <Label htmlFor="rf">File (max 25 MB)</Label>
-              <Input
-                id="rf"
-                type="file"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
+              <Input id="rf" type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               {progress > 0 && <Progress value={progress} className="h-2" />}
             </div>
           )}

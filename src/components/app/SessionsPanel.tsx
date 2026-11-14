@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { toast } from "sonner";
-import { CalendarDays, Clock, Loader2, MapPin, Plus, Search } from "lucide-react";
+import { CalendarDays, Clock, Loader2, MapPin, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -24,9 +24,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { canChangeItem } from "@/lib/team-rules";
+import { useTeamRoles } from "@/lib/use-team-roles";
 import { EmptyState } from "@/components/app/states";
 import {
   fetchTeamMembers,
@@ -96,8 +108,22 @@ export function SessionsPanel({
   const [finderOpen, setFinderOpen] = useState(false);
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const { user } = useAuth();
+  const { roleIn } = useTeamRoles();
   const queryClient = useQueryClient();
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const [deleting, setDeleting] = useState<{ id: string; title: string; weekly: boolean } | null>(
+    null,
+  );
+
+  async function deleteSession() {
+    if (!deleting) return;
+    const { error } = await supabase.from("sessions").delete().eq("id", deleting.id);
+    setDeleting(null);
+    if (error) return void toast.error(error.message);
+    toast.success("Session deleted");
+    void queryClient.invalidateQueries({ queryKey: ["sessions"] });
+    void queryClient.invalidateQueries({ queryKey: ["activity"] });
+  }
 
   const openTaskMembersQuery = useQuery({
     queryKey: ["members", openTask?.team_id],
@@ -163,9 +189,7 @@ export function SessionsPanel({
       tasks
         .filter(
           (t) =>
-            t.due_date &&
-            new Date(t.due_date) >= range.start &&
-            new Date(t.due_date) <= range.end,
+            t.due_date && new Date(t.due_date) >= range.start && new Date(t.due_date) <= range.end,
         )
         .map((t) => ({ task: t, date: new Date(t.due_date!) })),
     [tasks, range],
@@ -230,7 +254,8 @@ export function SessionsPanel({
           </div>
         )}
         <p className="text-sm text-muted-foreground">
-          {anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" })} · times shown in {tz}
+          {anchor.toLocaleDateString(undefined, { month: "long", year: "numeric" })} · times shown
+          in {tz}
         </p>
         <div className="ml-auto flex gap-2">
           <Button variant="outline" onClick={() => setFinderOpen(true)}>
@@ -274,7 +299,8 @@ export function SessionsPanel({
               <div>
                 <p className="font-medium">{o.session.title}</p>
                 <p className="text-xs text-muted-foreground">
-                  {o.start.toLocaleString()} – {o.end.toLocaleTimeString([], { timeStyle: "short" })}
+                  {o.start.toLocaleString()} –{" "}
+                  {o.end.toLocaleTimeString([], { timeStyle: "short" })}
                   {o.session.location ? ` · ${o.session.location}` : ""}
                 </p>
               </div>
@@ -282,6 +308,22 @@ export function SessionsPanel({
                 {overlaps.has(o.occurrenceKey) && <Badge variant="destructive">Overlaps</Badge>}
                 {o.session.recurrence === "weekly" && <Badge variant="secondary">Weekly</Badge>}
                 <RsvpButtons sessionId={o.session.id} />
+                {canChangeItem(roleIn(o.session.team_id), user?.id, o.session) && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    aria-label={`Delete ${o.session.title}`}
+                    onClick={() =>
+                      setDeleting({
+                        id: o.session.id,
+                        title: o.session.title,
+                        weekly: o.session.recurrence === "weekly",
+                      })
+                    }
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                )}
               </div>
             </motion.div>
           ))}
@@ -303,6 +345,22 @@ export function SessionsPanel({
         </div>
       )}
 
+      <AlertDialog open={!!deleting} onOpenChange={(v) => !v && setDeleting(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete "{deleting?.title}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleting?.weekly
+                ? "This removes the whole weekly series and everyone's replies."
+                : "This removes the session and everyone's replies."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteSession}>Delete session</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <CreateSessionDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
@@ -374,9 +432,7 @@ function MonthGrid({
                 isToday && "bg-primary/5",
               )}
             >
-              {day && (
-                <p className={cn("mb-1 font-medium", isToday && "text-primary")}>{day}</p>
-              )}
+              {day && <p className={cn("mb-1 font-medium", isToday && "text-primary")}>{day}</p>}
               <div className="space-y-1">
                 {dayOcc.slice(0, 3).map((o) => (
                   <p
@@ -482,7 +538,8 @@ function CreateSessionDialog({
         location: form.location || null,
         created_by: user.id,
         recurrence: weekly ? "weekly" : "none",
-        recurrence_end: weekly && form.recurrenceEnd ? new Date(form.recurrenceEnd).toISOString() : null,
+        recurrence_end:
+          weekly && form.recurrenceEnd ? new Date(form.recurrenceEnd).toISOString() : null,
       })
       .select("id")
       .single();
@@ -517,12 +574,19 @@ function CreateSessionDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Schedule a session</DialogTitle>
-          <DialogDescription>Times are stored in UTC and shown in each member's timezone.</DialogDescription>
+          <DialogDescription>
+            Times are stored in UTC and shown in each member's timezone.
+          </DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="st">Title</Label>
-            <Input id="st" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <Input
+              id="st"
+              required
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>Team</Label>
@@ -652,7 +716,11 @@ function MeetingFinder({
         })
         .sort((a, b) => b.count - a.count || a.weekday - b.weekday || a.minute - b.minute)
         .slice(0, 8);
-      return { options, total: ids.length, withAvailability: new Set((slots ?? []).map((s) => s.user_id)).size };
+      return {
+        options,
+        total: ids.length,
+        withAvailability: new Set((slots ?? []).map((s) => s.user_id)).size,
+      };
     },
   });
 

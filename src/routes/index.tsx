@@ -1,15 +1,8 @@
 import { useEffect } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import {
-  CalendarDays,
-  CheckCircle2,
-  ListChecks,
-  Sparkles,
-  Users,
-  ArrowRight,
-  BookOpen,
-} from "lucide-react";
+import { CalendarDays, CheckCircle2, ListChecks, Sparkles, Users, ArrowRight } from "lucide-react";
+import { BrandMark } from "@/components/app/BrandMark";
 import { Button } from "@/components/ui/button";
 import { fadeUp, stagger } from "@/lib/motion";
 import { useAuth } from "@/lib/auth";
@@ -75,9 +68,7 @@ function Landing() {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
           <Link to="/" className="flex items-center gap-2 font-display text-lg font-bold">
-            <span className="grid size-8 place-items-center rounded-xl bg-navy text-navy-foreground">
-              <BookOpen className="size-4" />
-            </span>
+            <BrandMark className="size-8" />
             TeamUp
           </Link>
           <nav className="flex items-center gap-2">

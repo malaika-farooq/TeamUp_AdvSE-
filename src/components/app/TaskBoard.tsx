@@ -48,6 +48,8 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { canDeleteComment, canDeleteTask, canEditTask } from "@/lib/team-rules";
+import { useTeamRoles } from "@/lib/use-team-roles";
 import { EmptyState } from "@/components/app/states";
 import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import {
@@ -116,7 +118,11 @@ export function TaskBoard({
   });
   const members = membersQuery.data ?? [];
   const nameOf = (id: string | null) =>
-    id ? (members.find((m) => m.user_id === id)?.profile?.display_name ?? "Teammate") : "Unassigned";
+    id
+      ? (members.find((m) => m.user_id === id)?.profile?.display_name ?? "Teammate")
+      : "Unassigned";
+  const { roleIn } = useTeamRoles();
+  const editable = (t: Task) => canEditTask(roleIn(t.team_id), user?.id, t);
   const avatarOf = (id: string | null) =>
     id ? (members.find((m) => m.user_id === id)?.profile?.avatar_url ?? null) : null;
 
@@ -142,10 +148,17 @@ export function TaskBoard({
     });
   }, [local, teamFilter, assigneeFilter, priorityFilter, dueFilter, search, user?.id]);
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }), useSensor(KeyboardSensor));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
 
   async function changeStatus(task: Task, status: TaskStatus) {
     if (task.status === status) return;
+    if (!editable(task)) {
+      toast.error("Only the task's creator, its assignee, or a team admin can change it.");
+      return;
+    }
     const previous = local;
     const next = local.map((t) =>
       t.id === task.id
@@ -167,7 +180,13 @@ export function TaskBoard({
       return;
     }
     if (user) {
-      await logActivity(task.team_id, user.id, "task_updated", `moved "${task.title}" to ${status.replace("_", " ")}`, task.id);
+      await logActivity(
+        task.team_id,
+        user.id,
+        "task_updated",
+        `moved "${task.title}" to ${status.replace("_", " ")}`,
+        task.id,
+      );
     }
     const teamTasks = next.filter((t) => t.team_id === task.team_id);
     if (status === "done" && teamTasks.length > 0 && teamTasks.every((t) => t.status === "done")) {
@@ -209,7 +228,10 @@ export function TaskBoard({
             value={teamFilter}
             onChange={setTeamFilter}
             label="Team"
-            options={[{ value: "all", label: "All teams" }, ...teams.map((t) => ({ value: t.id, label: t.name }))]}
+            options={[
+              { value: "all", label: "All teams" },
+              ...teams.map((t) => ({ value: t.id, label: t.name })),
+            ]}
           />
         )}
         <FilterSelect
@@ -244,7 +266,11 @@ export function TaskBoard({
             { value: "overdue", label: "Overdue" },
           ]}
         />
-        <Tabs value={view} onValueChange={(v) => setView(v as "board" | "list")} className="ml-auto">
+        <Tabs
+          value={view}
+          onValueChange={(v) => setView(v as "board" | "list")}
+          className="ml-auto"
+        >
           <TabsList>
             <TabsTrigger value="board">Board</TabsTrigger>
             <TabsTrigger value="list">List</TabsTrigger>
@@ -268,6 +294,7 @@ export function TaskBoard({
                 onOpen={setOpenTask}
                 nameOf={nameOf}
                 avatarOf={avatarOf}
+                canEdit={editable}
                 onStatusChange={changeStatus}
               />
             ))}
@@ -384,6 +411,7 @@ function Column({
   onOpen,
   nameOf,
   avatarOf,
+  canEdit,
   onStatusChange,
 }: {
   status: TaskStatus;
@@ -392,6 +420,7 @@ function Column({
   onOpen: (t: Task) => void;
   nameOf: (id: string | null) => string;
   avatarOf: (id: string | null) => string | null;
+  canEdit: (t: Task) => boolean;
   onStatusChange: (task: Task, status: TaskStatus) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
@@ -418,6 +447,7 @@ function Column({
               onOpen={onOpen}
               nameOf={nameOf}
               avatarOf={avatarOf}
+              canEdit={canEdit(t)}
               onStatusChange={onStatusChange}
             />
           ))}
@@ -437,16 +467,22 @@ function TaskCard({
   onOpen,
   nameOf,
   avatarOf,
+  canEdit,
   onStatusChange,
 }: {
   task: Task;
   onOpen: (t: Task) => void;
   nameOf: (id: string | null) => string;
   avatarOf: (id: string | null) => string | null;
+  canEdit: boolean;
   onStatusChange: (task: Task, status: TaskStatus) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: task.id });
-  const overdue = task.due_date && new Date(task.due_date).getTime() < Date.now() && task.status !== "done";
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    disabled: !canEdit,
+  });
+  const overdue =
+    task.due_date && new Date(task.due_date).getTime() < Date.now() && task.status !== "done";
 
   return (
     <motion.div
@@ -456,9 +492,12 @@ function TaskCard({
       animate={{ opacity: isDragging ? 0.6 : 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.18 }}
-      style={{ transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : "none" }}
+      style={{
+        transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : "none",
+      }}
       className={cn(
-        "surface-card cursor-grab p-3 active:cursor-grabbing",
+        "surface-card p-3",
+        canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-default",
         isDragging && "shadow-[var(--shadow-lift)]",
       )}
       {...listeners}
@@ -488,8 +527,22 @@ function TaskCard({
         </p>
       </button>
       <div className="mt-2" onPointerDown={(e) => e.stopPropagation()}>
-        <Select value={task.status} onValueChange={(v) => onStatusChange(task, v as TaskStatus)}>
-          <SelectTrigger className="h-8 text-xs" aria-label={`Status for ${task.title}`}>
+        <Select
+          value={task.status}
+          disabled={!canEdit}
+          onValueChange={(v) => onStatusChange(task, v as TaskStatus)}
+        >
+          <SelectTrigger
+            className="h-8 text-xs"
+            aria-label={
+              canEdit ? `Status for ${task.title}` : `Status for ${task.title} (view only)`
+            }
+            title={
+              canEdit
+                ? undefined
+                : "Only the creator, the assignee or a team admin can change this task"
+            }
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -574,7 +627,14 @@ function CreateTaskDialog({
       );
     }
     toast.success("Task created");
-    setForm({ title: "", description: "", priority: "medium", status: "todo", due: "", assignee: "unassigned" });
+    setForm({
+      title: "",
+      description: "",
+      priority: "medium",
+      status: "todo",
+      due: "",
+      assignee: "unassigned",
+    });
     onOpenChange(false);
     queryClient.invalidateQueries();
   }
@@ -695,6 +755,7 @@ export function TaskPanel({
   members: MemberWithProfile[];
 }) {
   const { user } = useAuth();
+  const { roleIn } = useTeamRoles();
   const queryClient = useQueryClient();
   const [comment, setComment] = useState("");
   const [newItem, setNewItem] = useState("");
@@ -704,16 +765,8 @@ export function TaskPanel({
     queryKey: ["task-detail", task?.id],
     queryFn: async () => {
       const [items, comments] = await Promise.all([
-        supabase
-          .from("task_checklist_items")
-          .select("*")
-          .eq("task_id", task!.id)
-          .order("position"),
-        supabase
-          .from("task_comments")
-          .select("*")
-          .eq("task_id", task!.id)
-          .order("created_at"),
+        supabase.from("task_checklist_items").select("*").eq("task_id", task!.id).order("position"),
+        supabase.from("task_comments").select("*").eq("task_id", task!.id).order("created_at"),
       ]);
       return { items: items.data ?? [], comments: comments.data ?? [] };
     },
@@ -721,6 +774,16 @@ export function TaskPanel({
   });
 
   if (!task) return null;
+
+  const myRole = roleIn(task.team_id);
+  const mayEdit = canEditTask(myRole, user?.id, task);
+  const mayDelete = canDeleteTask(myRole, user?.id, task);
+
+  async function removeComment(id: string) {
+    const { error } = await supabase.from("task_comments").delete().eq("id", id);
+    if (error) return void toast.error(error.message);
+    detail.refetch();
+  }
 
   async function addComment() {
     if (!comment.trim() || !user || !task) return;
@@ -781,7 +844,11 @@ export function TaskPanel({
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={task.status} onValueChange={(v) => onStatusChange(task, v as TaskStatus)}>
+              <Select
+                value={task.status}
+                disabled={!mayEdit}
+                onValueChange={(v) => onStatusChange(task, v as TaskStatus)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -796,7 +863,11 @@ export function TaskPanel({
             </div>
             <div className="space-y-1.5">
               <Label>Assignee</Label>
-              <Select value={task.assignee_id ?? "unassigned"} onValueChange={assign}>
+              <Select
+                value={task.assignee_id ?? "unassigned"}
+                disabled={!mayEdit}
+                onValueChange={assign}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -811,6 +882,13 @@ export function TaskPanel({
               </Select>
             </div>
           </div>
+
+          {!mayEdit && (
+            <p className="rounded-lg border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+              View only. Only the creator, the assignee, or a team admin can change this task. You
+              can still comment and tick checklist items.
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <Badge variant="secondary">Created by {nameOf(task.created_by)}</Badge>
@@ -867,6 +945,15 @@ export function TaskPanel({
                       fallbackClassName="text-[9px]"
                     />
                     {nameOf(c.author_id)} · {new Date(c.created_at).toLocaleString()}
+                    {canDeleteComment(myRole, user?.id, c) && (
+                      <button
+                        type="button"
+                        className="ml-auto text-xs underline-offset-2 hover:underline"
+                        onClick={() => removeComment(c.id)}
+                      >
+                        Delete
+                      </button>
+                    )}
                   </p>
                 </li>
               ))}
@@ -884,10 +971,12 @@ export function TaskPanel({
             </div>
           </section>
 
-          <Button variant="destructive" className="w-full" onClick={() => setConfirmDelete(true)}>
-            <Trash2 className="mr-2 size-4" />
-            Delete task
-          </Button>
+          {mayDelete && (
+            <Button variant="destructive" className="w-full" onClick={() => setConfirmDelete(true)}>
+              <Trash2 className="mr-2 size-4" />
+              Delete task
+            </Button>
+          )}
         </div>
       </SheetContent>
 
