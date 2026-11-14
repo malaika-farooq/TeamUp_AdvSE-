@@ -27,6 +27,7 @@ import {
 } from "recharts";
 import { AppShell } from "@/components/app/AppShell";
 import { TaskBoard } from "@/components/app/TaskBoard";
+import { columnOf } from "@/lib/task-board";
 import { SessionsPanel } from "@/components/app/SessionsPanel";
 import { MeetingTimes } from "@/components/app/teams/MeetingTimes";
 import { ResourcesPanel } from "@/components/app/ResourcesPanel";
@@ -359,12 +360,12 @@ function TeamWorkspace() {
               </span>
             </div>
             <Progress value={completion} className="h-2.5" />
-            <div className="grid gap-3 sm:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-3">
               {STATUSES.map((s) => (
                 <div key={s.key} className="rounded-xl border border-border p-3">
                   <p className="text-xs text-muted-foreground">{s.label}</p>
                   <p className="text-xl font-semibold">
-                    {tasks.filter((t) => t.status === s.key).length}
+                    {tasks.filter((t) => columnOf(t.status) === s.key).length}
                   </p>
                 </div>
               ))}

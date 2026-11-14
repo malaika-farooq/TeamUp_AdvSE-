@@ -293,7 +293,7 @@ function TopBar() {
         className="relative hidden max-w-sm flex-1 sm:block"
         onSubmit={(e) => {
           e.preventDefault();
-          navigate({ to: "/tasks", search: { q: query || undefined } });
+          navigate({ to: "/tasks", search: query ? { q: query } : {} });
         }}
       >
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

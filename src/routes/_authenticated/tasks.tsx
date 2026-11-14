@@ -8,6 +8,12 @@ import { fetchMyTeams, fetchTasks } from "@/lib/queries";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/tasks")({
+  // /tasks?q=word searches the board and /tasks?create=true opens the New task form
+  // (the header search box and the dashboard's "Create Task" shortcut use these).
+  validateSearch: (s: Record<string, unknown>): { q?: string; create?: boolean } => ({
+    ...(typeof s["q"] === "string" && s["q"] ? { q: s["q"] } : {}),
+    ...(s["create"] === true || s["create"] === "true" ? { create: true } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Tasks — TeamUp" },
@@ -24,7 +30,8 @@ export const Route = createFileRoute("/_authenticated/tasks")({
 
 function TasksPage() {
   const queryClient = useQueryClient();
-  const [createOpen, setCreateOpen] = useState(false);
+  const search = Route.useSearch();
+  const [createOpen, setCreateOpen] = useState(!!search.create);
 
   const teamsQuery = useQuery({ queryKey: ["teams"], queryFn: fetchMyTeams });
   const teamIds = (teamsQuery.data ?? []).map((t) => t.id);
@@ -63,6 +70,7 @@ function TasksPage() {
         <TaskBoard
           tasks={tasksQuery.data ?? []}
           teams={teamsQuery.data ?? []}
+          initialSearch={search.q ?? ""}
           createOpen={createOpen}
           onCreateOpenChange={setCreateOpen}
         />

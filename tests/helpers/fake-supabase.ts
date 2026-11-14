@@ -176,6 +176,12 @@ export function createFake(userId = "user-1") {
 
   const client = {
     from: (table: string) => builder(table),
+    // Live updates aren't simulated; pages just need the calls to exist.
+    channel: () => {
+      const ch = { on: () => ch, subscribe: () => ch };
+      return ch;
+    },
+    removeChannel: () => {},
     rpc: async (name: string, args: Record<string, unknown> = {}): Promise<Result> => {
       rpcCalls.push({ name, args: clone(args) });
       const err = rpcErrors[name];

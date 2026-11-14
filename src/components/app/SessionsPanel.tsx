@@ -379,6 +379,7 @@ export function SessionsPanel({
         task={openTask}
         onClose={() => setOpenTask(null)}
         onStatusChange={changeTaskStatus}
+        onUpdate={setOpenTask}
         nameOf={nameOf}
         members={openTaskMembers}
       />

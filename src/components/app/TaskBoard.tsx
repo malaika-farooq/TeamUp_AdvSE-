@@ -65,6 +65,25 @@ import {
   type Team,
 } from "@/lib/queries";
 import { cn } from "@/lib/utils";
+import {
+  BOARD_COLUMNS,
+  DESCRIPTION_MAX,
+  TITLE_MAX,
+  columnCounts,
+  columnLabel,
+  columnOf,
+  describeChanges,
+  dueState,
+  filterTasks,
+  isOverdue,
+  progress,
+  statusPatch,
+  tasksInColumn,
+  toLocalInput,
+  validateTaskForm,
+  type BoardStatus,
+  type DueKind,
+} from "@/lib/task-board";
 
 type TeamLike = Pick<Team, "id" | "name">;
 
@@ -97,8 +116,12 @@ export function TaskBoard({
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [priorityFilter, setPriorityFilter] = useState<string>("all");
   const [dueFilter, setDueFilter] = useState<string>("all");
-  const [openTask, setOpenTask] = useState<Task | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [createStatus, setCreateStatus] = useState<BoardStatus>("todo");
   const [local, setLocal] = useState<Task[]>(tasks);
+  // The open task is looked up by id, so the panel always shows its latest status, assignee and dates.
+  const openTask = local.find((t) => t.id === openId) ?? null;
+  const setOpenTask = (t: Task | null) => setOpenId(t?.id ?? null);
 
   useEffect(() => setLocal(tasks), [tasks]);
   useEffect(() => setSearch(initialSearch), [initialSearch]);
@@ -126,27 +149,24 @@ export function TaskBoard({
   const avatarOf = (id: string | null) =>
     id ? (members.find((m) => m.user_id === id)?.profile?.avatar_url ?? null) : null;
 
-  const filtered = useMemo(() => {
-    const now = Date.now();
-    return local.filter((t) => {
-      if (teamFilter !== "all" && t.team_id !== teamFilter) return false;
-      if (assigneeFilter === "me" && t.assignee_id !== user?.id) return false;
-      if (assigneeFilter !== "all" && assigneeFilter !== "me" && t.assignee_id !== assigneeFilter)
-        return false;
-      if (priorityFilter !== "all" && t.priority !== priorityFilter) return false;
-      if (dueFilter === "overdue")
-        if (!(t.due_date && new Date(t.due_date).getTime() < now && t.status !== "done"))
-          return false;
-      if (dueFilter === "week")
-        if (!(t.due_date && new Date(t.due_date).getTime() < now + 7 * 864e5)) return false;
-      if (search.trim()) {
-        const s = search.trim().toLowerCase();
-        if (!t.title.toLowerCase().includes(s) && !(t.description ?? "").toLowerCase().includes(s))
-          return false;
-      }
-      return true;
-    });
-  }, [local, teamFilter, assigneeFilter, priorityFilter, dueFilter, search, user?.id]);
+  const filtered = useMemo(
+    () =>
+      filterTasks(
+        local,
+        {
+          team: teamFilter,
+          assignee: assigneeFilter,
+          priority: priorityFilter,
+          due: dueFilter,
+          search,
+        },
+        user?.id,
+      ),
+    [local, teamFilter, assigneeFilter, priorityFilter, dueFilter, search, user?.id],
+  );
+  const counts = columnCounts(filtered);
+  const overall = progress(filtered);
+  const overdueCount = filtered.filter((t) => isOverdue(t)).length;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -154,26 +174,16 @@ export function TaskBoard({
   );
 
   async function changeStatus(task: Task, status: TaskStatus) {
-    if (task.status === status) return;
+    if (columnOf(task.status) === status) return;
     if (!editable(task)) {
       toast.error("Only the task's creator, its assignee, or a team admin can change it.");
       return;
     }
     const previous = local;
-    const next = local.map((t) =>
-      t.id === task.id
-        ? { ...t, status, completed_at: status === "done" ? new Date().toISOString() : null }
-        : t,
-    );
+    const patch = statusPatch(status as BoardStatus);
+    const next = local.map((t) => (t.id === task.id ? { ...t, ...patch } : t));
     setLocal(next);
-    const { error } = await supabase
-      .from("tasks")
-      .update({
-        status,
-        completed_at: status === "done" ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", task.id);
+    const { error } = await supabase.from("tasks").update(patch).eq("id", task.id);
     if (error) {
       setLocal(previous);
       toast.error(`Couldn't save that change. ${taskErrorMessage(error)}`);
@@ -184,20 +194,42 @@ export function TaskBoard({
         task.team_id,
         user.id,
         "task_updated",
-        `moved "${task.title}" to ${status.replace("_", " ")}`,
+        `moved "${task.title}" to ${columnLabel(status)}`,
         task.id,
       );
+      // Tell the person who asked for the work when someone else finishes it.
+      if (status === "done" && task.created_by !== user.id) {
+        await notify(
+          task.created_by,
+          "task_done",
+          "A task you created is done",
+          task.title,
+          "/tasks",
+        );
+      }
     }
     const teamTasks = next.filter((t) => t.team_id === task.team_id);
-    if (status === "done" && teamTasks.length > 0 && teamTasks.every((t) => t.status === "done")) {
+    if (
+      status === "done" &&
+      teamTasks.length > 0 &&
+      teamTasks.every((t) => columnOf(t.status) === "done")
+    ) {
       confettiBurst();
       toast.success("Every task in this team is done. Nice work!");
     }
     queryClient.invalidateQueries({ queryKey: ["activity"] });
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
+  }
+
+  /** Keeps the board in step with a task that was edited in the panel. */
+  function updateLocal(task: Task) {
+    setLocal((all) => all.map((t) => (t.id === task.id ? task : t)));
+    queryClient.invalidateQueries({ queryKey: ["tasks"] });
   }
 
   function onDragEnd(event: DragEndEvent) {
-    const status = event.over?.id as TaskStatus | undefined;
+    const over = event.over?.id;
+    const status = BOARD_COLUMNS.some((c) => c.key === over) ? (over as TaskStatus) : undefined;
     const task = local.find((t) => t.id === event.active.id);
     if (!status || !task) return;
     changeStatus(task, status);
@@ -276,21 +308,38 @@ export function TaskBoard({
             <TabsTrigger value="list">List</TabsTrigger>
           </TabsList>
         </Tabs>
-        <Button onClick={() => onCreateOpenChange(true)}>
+        <Button
+          onClick={() => {
+            setCreateStatus("todo");
+            onCreateOpenChange(true);
+          }}
+        >
           <Plus className="mr-1.5 size-4" />
           New task
         </Button>
       </div>
 
+      <p className="text-sm text-muted-foreground" aria-live="polite">
+        {overall.done} of {overall.total} done ({overall.percent}%)
+        {overdueCount > 0 && (
+          <span className="ml-2 font-medium text-destructive">{overdueCount} overdue</span>
+        )}
+      </p>
+
       {view === "board" ? (
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {STATUSES.map((col) => (
+          <div className="grid gap-4 md:grid-cols-3">
+            {BOARD_COLUMNS.map((col) => (
               <Column
                 key={col.key}
                 status={col.key}
                 label={col.label}
-                tasks={filtered.filter((t) => t.status === col.key)}
+                tasks={tasksInColumn(filtered, col.key)}
+                total={counts[col.key]}
+                onAdd={() => {
+                  setCreateStatus(col.key);
+                  onCreateOpenChange(true);
+                }}
                 onOpen={setOpenTask}
                 nameOf={nameOf}
                 avatarOf={avatarOf}
@@ -302,7 +351,7 @@ export function TaskBoard({
         </DndContext>
       ) : (
         <ul className="space-y-2">
-          {filtered.map((t) => (
+          {BOARD_COLUMNS.flatMap((c) => tasksInColumn(filtered, c.key)).map((t) => (
             <li key={t.id}>
               <button
                 onClick={() => setOpenTask(t)}
@@ -322,14 +371,12 @@ export function TaskBoard({
                       )}
                       {nameOf(t.assignee_id)}
                     </span>{" "}
-                    · {t.due_date ? new Date(t.due_date).toLocaleDateString() : "No due date"}
+                    · {dueState(t.due_date, t.status).label}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   <PriorityBadge priority={t.priority} />
-                  <Badge variant="secondary">
-                    {STATUSES.find((s) => s.key === t.status)?.label}
-                  </Badge>
+                  <Badge variant="secondary">{columnLabel(t.status)}</Badge>
                 </div>
               </button>
             </li>
@@ -349,11 +396,13 @@ export function TaskBoard({
         onOpenChange={onCreateOpenChange}
         teams={teams}
         defaultTeamId={defaultTeamId ?? (teamFilter !== "all" ? teamFilter : teams[0]?.id)}
+        initialStatus={createStatus}
       />
       <TaskPanel
         task={openTask}
         onClose={() => setOpenTask(null)}
         onStatusChange={changeStatus}
+        onUpdate={updateLocal}
         nameOf={nameOf}
         members={members}
       />
@@ -408,6 +457,8 @@ function Column({
   status,
   label,
   tasks,
+  total,
+  onAdd,
   onOpen,
   nameOf,
   avatarOf,
@@ -417,6 +468,8 @@ function Column({
   status: TaskStatus;
   label: string;
   tasks: Task[];
+  total: number;
+  onAdd: () => void;
   onOpen: (t: Task) => void;
   nameOf: (id: string | null) => string;
   avatarOf: (id: string | null) => string | null;
@@ -427,6 +480,8 @@ function Column({
   return (
     <div
       ref={setNodeRef}
+      role="group"
+      aria-label={label}
       className={cn(
         "rounded-2xl border border-border bg-muted/40 p-3 transition-colors duration-200",
         isOver && "border-primary bg-primary/5",
@@ -436,7 +491,21 @@ function Column({
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
-        <Badge variant="secondary">{tasks.length}</Badge>
+        <div className="flex items-center gap-1">
+          <Badge variant="secondary" aria-label={`${total} in ${label}`}>
+            {total}
+          </Badge>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-7"
+            aria-label={`Add task to ${label}`}
+            onClick={onAdd}
+          >
+            <Plus className="size-4" />
+          </Button>
+        </div>
       </div>
       <div className="space-y-2">
         <AnimatePresence initial={false}>
@@ -481,8 +550,7 @@ function TaskCard({
     id: task.id,
     disabled: !canEdit,
   });
-  const overdue =
-    task.due_date && new Date(task.due_date).getTime() < Date.now() && task.status !== "done";
+  const due = dueState(task.due_date, task.status);
 
   return (
     <motion.div
@@ -508,9 +576,13 @@ function TaskCard({
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <PriorityBadge priority={task.priority} />
           {task.due_date && (
-            <Badge variant={overdue ? "destructive" : "secondary"} className="gap-1">
+            <Badge
+              variant={due.kind === "overdue" ? "destructive" : "secondary"}
+              className={cn("gap-1", due.kind === "today" && "border-primary/40 bg-primary/10")}
+              data-due={due.kind}
+            >
               <CalendarClock className="size-3" />
-              {new Date(task.due_date).toLocaleDateString()}
+              {due.label}
             </Badge>
           )}
         </div>
@@ -528,7 +600,7 @@ function TaskCard({
       </button>
       <div className="mt-2" onPointerDown={(e) => e.stopPropagation()}>
         <Select
-          value={task.status}
+          value={columnOf(task.status)}
           disabled={!canEdit}
           onValueChange={(v) => onStatusChange(task, v as TaskStatus)}
         >
@@ -563,11 +635,13 @@ function CreateTaskDialog({
   onOpenChange,
   teams,
   defaultTeamId,
+  initialStatus = "todo",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   teams: TeamLike[];
   defaultTeamId?: string | undefined;
+  initialStatus?: BoardStatus;
 }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -577,14 +651,22 @@ function CreateTaskDialog({
     title: "",
     description: "",
     priority: "medium" as TaskPriority,
-    status: "todo" as TaskStatus,
+    status: initialStatus as string,
     due: "",
     assignee: "unassigned",
   });
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof form, string>>>({});
 
   useEffect(() => {
     if (defaultTeamId) setTeamId(defaultTeamId);
   }, [defaultTeamId]);
+  // Opening from a column's "+" starts the task in that column.
+  useEffect(() => {
+    if (open) {
+      setForm((f) => ({ ...f, status: initialStatus }));
+      setErrors({});
+    }
+  }, [open, initialStatus]);
 
   const membersQuery = useQuery({
     queryKey: ["members", teamId],
@@ -595,34 +677,41 @@ function CreateTaskDialog({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!user || !teamId) return;
+    const checked = validateTaskForm(form);
+    if (!checked.ok) {
+      setErrors(checked.errors);
+      return;
+    }
+    setErrors({});
+    const clean = checked.clean;
     setBusy(true);
     const { data, error } = await supabase
       .from("tasks")
       .insert({
         team_id: teamId,
-        title: form.title,
-        description: form.description || null,
-        priority: form.priority,
-        status: form.status,
-        due_date: form.due ? new Date(form.due).toISOString() : null,
-        assignee_id: form.assignee === "unassigned" ? null : form.assignee,
+        title: clean.title,
+        description: clean.description,
+        priority: clean.priority,
+        due_date: clean.due_date,
+        assignee_id: clean.assignee_id,
         created_by: user.id,
         position: Date.now() % 1000000,
+        ...statusPatch(clean.status),
       })
       .select("*")
       .single();
     setBusy(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(taskErrorMessage(error));
       return;
     }
-    await logActivity(teamId, user.id, "task_created", `created "${form.title}"`, data.id);
-    if (form.assignee !== "unassigned" && form.assignee !== user.id) {
+    await logActivity(teamId, user.id, "task_created", `created "${clean.title}"`, data.id);
+    if (clean.assignee_id && clean.assignee_id !== user.id) {
       await notify(
-        form.assignee,
+        clean.assignee_id,
         "task_assigned",
         "New task assigned to you",
-        form.title,
+        clean.title,
         `/tasks`,
       );
     }
@@ -631,7 +720,7 @@ function CreateTaskDialog({
       title: "",
       description: "",
       priority: "medium",
-      status: "todo",
+      status: initialStatus,
       due: "",
       assignee: "unassigned",
     });
@@ -650,10 +739,16 @@ function CreateTaskDialog({
             <Label htmlFor="tt">Title</Label>
             <Input
               id="tt"
-              required
               value={form.title}
+              maxLength={TITLE_MAX}
+              aria-invalid={!!errors.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
+            {errors.title && (
+              <p role="alert" className="text-xs text-destructive">
+                {errors.title}
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="tdesc">Description</Label>
@@ -661,6 +756,7 @@ function CreateTaskDialog({
               id="tdesc"
               rows={3}
               value={form.description}
+              maxLength={DESCRIPTION_MAX}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
           </div>
@@ -668,7 +764,7 @@ function CreateTaskDialog({
             <div className="space-y-1.5">
               <Label>Team</Label>
               <Select value={teamId} onValueChange={setTeamId}>
-                <SelectTrigger>
+                <SelectTrigger aria-label="Team">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -686,7 +782,7 @@ function CreateTaskDialog({
                 value={form.assignee}
                 onValueChange={(v) => setForm({ ...form, assignee: v })}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Assignee">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -705,7 +801,7 @@ function CreateTaskDialog({
                 value={form.priority}
                 onValueChange={(v) => setForm({ ...form, priority: v as TaskPriority })}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Priority">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -718,13 +814,34 @@ function CreateTaskDialog({
               </Select>
             </div>
             <div className="space-y-1.5">
+              <Label>Status</Label>
+              <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                <SelectTrigger aria-label="Status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BOARD_COLUMNS.map((c) => (
+                    <SelectItem key={c.key} value={c.key}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="tdue">Due date</Label>
               <Input
                 id="tdue"
                 type="datetime-local"
                 value={form.due}
+                aria-invalid={!!errors.due}
                 onChange={(e) => setForm({ ...form, due: e.target.value })}
               />
+              {errors.due && (
+                <p role="alert" className="text-xs text-destructive">
+                  {errors.due}
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
@@ -745,12 +862,15 @@ export function TaskPanel({
   task,
   onClose,
   onStatusChange,
+  onUpdate,
   nameOf,
   members,
 }: {
   task: Task | null;
   onClose: () => void;
   onStatusChange: (task: Task, status: TaskStatus) => void;
+  /** Called with the saved task after the assignee or the details change. */
+  onUpdate?: (task: Task) => void;
   nameOf: (id: string | null) => string;
   members: MemberWithProfile[];
 }) {
@@ -760,6 +880,10 @@ export function TaskPanel({
   const [comment, setComment] = useState("");
   const [newItem, setNewItem] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState({ title: "", description: "", priority: "medium", due: "" });
+  const [draftErrors, setDraftErrors] = useState<Record<string, string>>({});
 
   const detail = useQuery({
     queryKey: ["task-detail", task?.id],
@@ -807,17 +931,102 @@ export function TaskPanel({
 
   async function assign(userId: string) {
     if (!task) return;
+    const assignee = userId === "unassigned" ? null : userId;
+    if (assignee === task.assignee_id) return;
     const { error } = await supabase
       .from("tasks")
-      .update({ assignee_id: userId === "unassigned" ? null : userId })
+      .update({ assignee_id: assignee })
       .eq("id", task.id);
     if (error) return void toast.error(taskErrorMessage(error));
-    if (userId !== "unassigned" && userId !== user?.id) {
-      await notify(userId, "task_assigned", "New task assigned to you", task.title, "/tasks");
+    if (assignee && assignee !== user?.id) {
+      await notify(assignee, "task_assigned", "New task assigned to you", task.title, "/tasks");
+    }
+    if (user) {
+      await logActivity(
+        task.team_id,
+        user.id,
+        "task_updated",
+        assignee ? `assigned "${task.title}" to ${nameOf(assignee)}` : `unassigned "${task.title}"`,
+        task.id,
+      );
     }
     toast.success("Assignee updated");
-    queryClient.invalidateQueries();
-    onClose();
+    onUpdate?.({ ...task, assignee_id: assignee });
+    queryClient.invalidateQueries({ queryKey: ["activity"] });
+  }
+
+  function startEditing() {
+    if (!task) return;
+    setDraft({
+      title: task.title,
+      description: task.description ?? "",
+      priority: task.priority,
+      due: toLocalInput(task.due_date),
+    });
+    setDraftErrors({});
+    setEditing(true);
+  }
+
+  async function saveDetails() {
+    if (!task) return;
+    const checked = validateTaskForm({
+      ...draft,
+      status: columnOf(task.status),
+      assignee: task.assignee_id ?? "unassigned",
+    });
+    if (!checked.ok) {
+      setDraftErrors(checked.errors as Record<string, string>);
+      return;
+    }
+    setDraftErrors({});
+    const c = checked.clean;
+    const changed = describeChanges(task, {
+      title: c.title,
+      description: c.description,
+      priority: c.priority,
+      due_date: c.due_date,
+    });
+    if (!changed.length) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    const patch = {
+      title: c.title,
+      description: c.description,
+      priority: c.priority,
+      due_date: c.due_date,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("tasks").update(patch).eq("id", task.id);
+    setSaving(false);
+    if (error) return void toast.error(taskErrorMessage(error));
+    if (user) {
+      await logActivity(
+        task.team_id,
+        user.id,
+        "task_updated",
+        `edited "${c.title}" (${changed.join(", ")})`,
+        task.id,
+      );
+      if (
+        changed.some((x) => x.startsWith("due date")) &&
+        task.assignee_id &&
+        task.assignee_id !== user.id
+      ) {
+        await notify(
+          task.assignee_id,
+          "task_due_changed",
+          c.due_date ? "A task's due date changed" : "A task's due date was removed",
+          c.title,
+          "/tasks",
+        );
+      }
+    }
+    toast.success("Task updated");
+    setEditing(false);
+    onUpdate?.({ ...task, ...patch });
+    queryClient.invalidateQueries({ queryKey: ["activity"] });
   }
 
   async function remove() {
@@ -837,19 +1046,113 @@ export function TaskPanel({
           <SheetTitle className="pr-6 text-left">{task.title}</SheetTitle>
         </SheetHeader>
         <div className="space-y-5 px-4 pb-8">
-          <p className="text-sm text-muted-foreground">
-            {task.description || "No description provided."}
-          </p>
+          {editing ? (
+            <form
+              aria-label="Edit task details"
+              className="space-y-3 rounded-xl border border-border p-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveDetails();
+              }}
+            >
+              <div className="space-y-1.5">
+                <Label htmlFor="et-title">Title</Label>
+                <Input
+                  id="et-title"
+                  value={draft.title}
+                  maxLength={TITLE_MAX}
+                  onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                />
+                {draftErrors["title"] && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {draftErrors["title"]}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="et-desc">Description</Label>
+                <Textarea
+                  id="et-desc"
+                  rows={3}
+                  value={draft.description}
+                  maxLength={DESCRIPTION_MAX}
+                  onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="et-priority">Priority</Label>
+                  <select
+                    id="et-priority"
+                    className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                    value={draft.priority}
+                    onChange={(e) => setDraft({ ...draft, priority: e.target.value })}
+                  >
+                    {PRIORITIES.map((p) => (
+                      <option key={p} value={p}>
+                        {p}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="et-due">Due date</Label>
+                  <Input
+                    id="et-due"
+                    type="datetime-local"
+                    value={draft.due}
+                    onChange={(e) => setDraft({ ...draft, due: e.target.value })}
+                  />
+                  {draftErrors["due"] && (
+                    <p role="alert" className="text-xs text-destructive">
+                      {draftErrors["due"]}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-between gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={!draft.due}
+                  onClick={() => setDraft({ ...draft, due: "" })}
+                >
+                  Remove due date
+                </Button>
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" size="sm" disabled={saving}>
+                    {saving && <Loader2 className="mr-1.5 size-4 animate-spin" />}
+                    Save changes
+                  </Button>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {task.description || "No description provided."}
+              </p>
+              {mayEdit && (
+                <Button variant="outline" size="sm" onClick={startEditing}>
+                  Edit details
+                </Button>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div className="space-y-1.5">
               <Label>Status</Label>
               <Select
-                value={task.status}
+                value={columnOf(task.status)}
                 disabled={!mayEdit}
                 onValueChange={(v) => onStatusChange(task, v as TaskStatus)}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -868,7 +1171,7 @@ export function TaskPanel({
                 disabled={!mayEdit}
                 onValueChange={assign}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-label="Assignee">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -893,7 +1196,16 @@ export function TaskPanel({
           <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
             <Badge variant="secondary">Created by {nameOf(task.created_by)}</Badge>
             {task.due_date && (
-              <Badge variant="secondary">Due {new Date(task.due_date).toLocaleString()}</Badge>
+              <Badge
+                variant={
+                  dueState(task.due_date, task.status).kind === "overdue"
+                    ? "destructive"
+                    : "secondary"
+                }
+              >
+                {dueState(task.due_date, task.status).label} ·{" "}
+                {new Date(task.due_date).toLocaleString()}
+              </Badge>
             )}
             <PriorityBadge priority={task.priority} />
           </div>

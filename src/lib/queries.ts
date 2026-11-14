@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { BOARD_COLUMNS } from "./task-board";
 import type { Database } from "@/integrations/supabase/types";
 
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
@@ -13,12 +14,8 @@ export type TaskStatus = Database["public"]["Enums"]["task_status"];
 export type TaskPriority = Database["public"]["Enums"]["task_priority"];
 export type TeamRole = Database["public"]["Enums"]["team_role"];
 
-export const STATUSES: { key: TaskStatus; label: string }[] = [
-  { key: "todo", label: "To Do" },
-  { key: "in_progress", label: "In Progress" },
-  { key: "in_review", label: "In Review" },
-  { key: "done", label: "Done" },
-];
+/** The three board columns. (Tasks still marked "In Review" show under In Progress.) */
+export const STATUSES: { key: TaskStatus; label: string }[] = BOARD_COLUMNS;
 
 export const PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
 

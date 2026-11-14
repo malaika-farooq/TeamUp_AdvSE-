@@ -48,7 +48,7 @@ export const createSampleWorkspace = createServerFn({ method: "POST" })
       { title: "Collect reference papers", status: "done", priority: "medium", due: addDays(-3) },
       { title: "Build the tree visualiser", status: "in_progress", priority: "urgent", due: addDays(4) },
       { title: "Write methodology section", status: "in_progress", priority: "high", due: addDays(6) },
-      { title: "Peer review the draft", status: "in_review", priority: "medium", due: addDays(9) },
+      { title: "Peer review the draft", status: "in_progress", priority: "medium", due: addDays(9) },
       { title: "Prepare demo slides", status: "todo", priority: "medium", due: addDays(12) },
       { title: "Rehearse presentation", status: "todo", priority: "low", due: addDays(15) },
       { title: "Submit final report", status: "todo", priority: "urgent", due: addDays(-1) },

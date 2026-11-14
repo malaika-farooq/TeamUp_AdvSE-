@@ -77,6 +77,8 @@ mock.module("@/lib/sample.functions", () => ({
   removeSampleWorkspace: (...a: unknown[]) => h.sample.remove(...a),
 }));
 
+mock.module("@/lib/confetti", () => ({ default: () => h.confetti() }));
+
 mock.module("@/lib/partners.functions", () => ({
   suggestStudyPartners: (...a: unknown[]) => h.ai.suggestPartners(...a),
   proposeStudySessions: (...a: unknown[]) => h.ai.proposeSessions(...a),
