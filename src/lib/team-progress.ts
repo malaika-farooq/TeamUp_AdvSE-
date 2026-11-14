@@ -29,7 +29,11 @@ export async function fetchActivityPage(
 }
 
 /** The last 30 days of activity, for working out who has been active (capped so it stays quick). */
-export async function fetchRecentActivity(teamId: string, days = 30, cap = 500): Promise<ActivityLog[]> {
+export async function fetchRecentActivity(
+  teamId: string,
+  days = 30,
+  cap = 500,
+): Promise<ActivityLog[]> {
   const { data, error } = await supabase
     .from("activity_logs")
     .select("*")
@@ -44,7 +48,10 @@ export async function fetchRecentActivity(teamId: string, days = 30, cap = 500):
 /** Comments on the given tasks (one row each), to count who has been discussing the work. */
 export async function fetchCommentAuthors(taskIds: string[]): Promise<{ author_id: string }[]> {
   if (!taskIds.length) return [];
-  const { data, error } = await supabase.from("task_comments").select("author_id").in("task_id", taskIds);
+  const { data, error } = await supabase
+    .from("task_comments")
+    .select("author_id")
+    .in("task_id", taskIds);
   if (error) throw new Error(error.message);
   return data ?? [];
 }

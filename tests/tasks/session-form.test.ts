@@ -14,7 +14,9 @@ describe("Checking a session before saving", () => {
   test("a good session is cleaned up", () => {
     const r = validateSessionForm(form({ title: "  Sprint   planning " }));
     expect(r.ok && r.clean.title).toBe("Sprint planning");
-    expect(r.ok && new Date(r.clean.endsAt).getTime() - new Date(r.clean.startsAt).getTime()).toBe(90 * 60_000);
+    expect(r.ok && new Date(r.clean.endsAt).getTime() - new Date(r.clean.startsAt).getTime()).toBe(
+      90 * 60_000,
+    );
     expect(r.ok && r.clean.recurrenceEnd).toBeNull();
   });
   test("the title is required", () => {

@@ -67,7 +67,8 @@ mock.module("@tanstack/react-router", () => ({
     useParams: () => h.params,
   }),
   // A redirect is thrown, as in the real router, so route guards can be tested.
-  redirect: (opts: Record<string, unknown>) => Object.assign(new Error("redirect"), { redirect: opts }),
+  redirect: (opts: Record<string, unknown>) =>
+    Object.assign(new Error("redirect"), { redirect: opts }),
   Outlet: () => null,
 }));
 

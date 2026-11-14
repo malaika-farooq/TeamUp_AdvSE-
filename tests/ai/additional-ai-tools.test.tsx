@@ -45,7 +45,12 @@ const planned = (over = {}) => ({
 beforeEach(team);
 
 describe("Plan tasks", () => {
-  const run = async (tasks = [planned(), planned({ title: "Make the slides", assigneeId: null, assigneeName: null, checklist: [] })]) => {
+  const run = async (
+    tasks = [
+      planned(),
+      planned({ title: "Make the slides", assigneeId: null, assigneeName: null, checklist: [] }),
+    ],
+  ) => {
     h.ai.planTasks = mock(async () => ({
       members: [
         { id: "user-1", name: "Maya Chen" },
@@ -65,14 +70,18 @@ describe("Plan tasks", () => {
     await user.type(screen.getByLabelText(/what should the plan focus on/i), "the final report");
     await user.click(screen.getByRole("button", { name: "Draft a new plan" }));
     await waitFor(() => expect(h.ai.planTasks).toHaveBeenCalledTimes(2));
-    expect(h.ai.planTasks.mock.calls[1]![0]).toEqual({ data: { teamId: "t1", count: 6, focus: "the final report" } });
+    expect(h.ai.planTasks.mock.calls[1]![0]).toEqual({
+      data: { teamId: "t1", count: 6, focus: "the final report" },
+    });
   });
 
   test("shows each suggestion as editable, with a reminder that nothing is saved yet", async () => {
     await run();
     expect(screen.getByText(/suggestions only/i)).toBeTruthy();
     expect(screen.getAllByLabelText("Task title")).toHaveLength(2);
-    expect((screen.getAllByLabelText("Task title")[0] as HTMLInputElement).value).toBe("Write the introduction");
+    expect((screen.getAllByLabelText("Task title")[0] as HTMLInputElement).value).toBe(
+      "Write the introduction",
+    );
     expect(h.fake.callsTo("tasks", "insert")).toHaveLength(0);
   });
 
@@ -84,11 +93,22 @@ describe("Plan tasks", () => {
     await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith("2 tasks added to the board"));
     const rows = h.fake.callsTo("tasks", "insert")[0]!.payload as Record<string, unknown>[];
     expect(rows.map((r) => r["title"])).toEqual(["Write the intro (edited)", "Make the slides"]);
-    expect(rows[0]).toMatchObject({ team_id: "t1", assignee_id: "u2", status: "todo", priority: "high", created_by: "user-1" });
+    expect(rows[0]).toMatchObject({
+      team_id: "t1",
+      assignee_id: "u2",
+      status: "todo",
+      priority: "high",
+      created_by: "user-1",
+    });
     expect(rows[1]!["assignee_id"]).toBeNull();
     expect(h.fake.callsTo("notifications", "insert")).toHaveLength(1);
-    expect(h.fake.callsTo("notifications", "insert")[0]!.payload).toMatchObject({ user_id: "u2", type: "task_assigned" });
-    expect((h.fake.callsTo("activity_logs", "insert")[0]!.payload as { summary: string }).summary).toBe("added 2 planned tasks");
+    expect(h.fake.callsTo("notifications", "insert")[0]!.payload).toMatchObject({
+      user_id: "u2",
+      type: "task_assigned",
+    });
+    expect(
+      (h.fake.callsTo("activity_logs", "insert")[0]!.payload as { summary: string }).summary,
+    ).toBe("added 2 planned tasks");
     await waitFor(() => expect(screen.queryAllByLabelText("Task title")).toHaveLength(0));
   });
 
@@ -113,14 +133,19 @@ describe("Plan tasks", () => {
     const { user } = await run([planned({ title: "x".repeat(260) })]);
     await user.click(screen.getByRole("button", { name: /save 1 selected tasks/i }));
     await waitFor(() => expect(h.toast.success).toHaveBeenCalled());
-    expect(((h.fake.callsTo("tasks", "insert")[0]!.payload as { title: string }[])[0]!.title).length).toBe(200);
+    expect(
+      (h.fake.callsTo("tasks", "insert")[0]!.payload as { title: string }[])[0]!.title.length,
+    ).toBe(200);
   });
 
   test("checklists are saved with each task", async () => {
     const { user } = await run();
     await user.click(screen.getByRole("button", { name: /save 2 selected tasks/i }));
     await waitFor(() => expect(h.toast.success).toHaveBeenCalled());
-    const items = h.fake.callsTo("task_checklist_items", "insert")[0]!.payload as { label: string; position: number }[];
+    const items = h.fake.callsTo("task_checklist_items", "insert")[0]!.payload as {
+      label: string;
+      position: number;
+    }[];
     expect(items.map((i) => i.label)).toEqual(["Outline", "Draft"]);
     expect(items.map((i) => i.position)).toEqual([0, 1]);
   });
@@ -169,17 +194,30 @@ describe("Break down a task", () => {
     updated_at: "2026-11-01T00:00:00Z",
   };
   const start = async () => {
-    h.fake.seed("tasks", [openTask, { ...openTask, id: "task-2", title: "Already done", status: "done" }] as never);
-    h.ai.breakdown = mock(async () => ({ steps: ["Sketch the screens", "Build the form", "Test it"], tip: "Start with the form." }));
+    h.fake.seed("tasks", [
+      openTask,
+      { ...openTask, id: "task-2", title: "Already done", status: "done" },
+    ] as never);
+    h.ai.breakdown = mock(async () => ({
+      steps: ["Sketch the screens", "Build the form", "Test it"],
+      tip: "Start with the form.",
+    }));
     const view = renderWithClient(<BreakdownTool teamId="t1" />);
-    await choose(view.user, await screen.findByRole("combobox", { name: "Task to break down" }), "Build the prototype");
+    await choose(
+      view.user,
+      await screen.findByRole("combobox", { name: "Task to break down" }),
+      "Build the prototype",
+    );
     await view.user.click(screen.getByRole("button", { name: "Break it down" }));
     await screen.findByLabelText("Step 1");
     return view;
   };
 
   test("only open tasks can be chosen", async () => {
-    h.fake.seed("tasks", [openTask, { ...openTask, id: "task-2", title: "Already done", status: "done" }] as never);
+    h.fake.seed("tasks", [
+      openTask,
+      { ...openTask, id: "task-2", title: "Already done", status: "done" },
+    ] as never);
     const { user } = renderWithClient(<BreakdownTool teamId="t1" />);
     await user.click(await screen.findByRole("combobox", { name: "Task to break down" }));
     const options = (await screen.findAllByRole("option")).map((o) => o.textContent);
@@ -188,7 +226,9 @@ describe("Break down a task", () => {
 
   test("the button waits until a task is chosen", async () => {
     renderWithClient(<BreakdownTool teamId="t1" />);
-    expect((screen.getByRole("button", { name: "Break it down" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      (screen.getByRole("button", { name: "Break it down" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
   });
 
   test("shows editable steps and a tip", async () => {
@@ -199,13 +239,22 @@ describe("Break down a task", () => {
   });
 
   test("adds the chosen steps to the task's checklist after the existing ones", async () => {
-    h.fake.seed("task_checklist_items", [{ id: "c1", task_id: "task-1", label: "Existing", position: 0 }] as never);
+    h.fake.seed("task_checklist_items", [
+      { id: "c1", task_id: "task-1", label: "Existing", position: 0 },
+    ] as never);
     const { user } = await start();
-    fireEvent.change(screen.getByLabelText("Step 1"), { target: { value: "Sketch the screens (edited)" } });
+    fireEvent.change(screen.getByLabelText("Step 1"), {
+      target: { value: "Sketch the screens (edited)" },
+    });
     await user.click(screen.getByRole("checkbox", { name: "Include step 3" })); // untick "Test it"
     await user.click(screen.getByRole("button", { name: /add to the task's checklist/i }));
-    await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith("2 steps added to the task's checklist"));
-    const rows = h.fake.callsTo("task_checklist_items", "insert")[0]!.payload as { label: string; task_id: string }[];
+    await waitFor(() =>
+      expect(h.toast.success).toHaveBeenCalledWith("2 steps added to the task's checklist"),
+    );
+    const rows = h.fake.callsTo("task_checklist_items", "insert")[0]!.payload as {
+      label: string;
+      task_id: string;
+    }[];
     expect(rows.map((r) => r.label)).toEqual(["Sketch the screens (edited)", "Build the form"]);
     expect(rows.every((r) => r.task_id === "task-1")).toBe(true);
     await waitFor(() => expect(screen.queryByLabelText("Step 1")).toBeNull());
@@ -225,7 +274,11 @@ describe("Break down a task", () => {
       throw new Error("The AI service is busy.");
     });
     const { user } = renderWithClient(<BreakdownTool teamId="t1" />);
-    await choose(user, await screen.findByRole("combobox", { name: "Task to break down" }), "Build the prototype");
+    await choose(
+      user,
+      await screen.findByRole("combobox", { name: "Task to break down" }),
+      "Build the prototype",
+    );
     await user.click(screen.getByRole("button", { name: "Break it down" }));
     expect((await screen.findByRole("alert")).textContent).toContain("The AI service is busy.");
   });
@@ -233,7 +286,10 @@ describe("Break down a task", () => {
 
 describe("Written drafts (summary, check-in, agenda, study guide, quiz)", () => {
   let fetchSpy: ReturnType<typeof spyOn>;
-  const reply = (chunks: string[], init: { ok?: boolean; status?: number; json?: unknown } = {}) => {
+  const reply = (
+    chunks: string[],
+    init: { ok?: boolean; status?: number; json?: unknown } = {},
+  ) => {
     fetchSpy = spyOn(globalThis, "fetch").mockImplementation((async () => {
       if (init.ok === false) {
         return new Response(JSON.stringify(init.json ?? {}), { status: init.status ?? 500 });
@@ -281,9 +337,16 @@ describe("Written drafts (summary, check-in, agenda, study guide, quiz)", () => 
     await user.click(screen.getByRole("button", { name: "Summarize progress" }));
     await screen.findByText(/all good/);
     await user.click(screen.getByRole("button", { name: "Save as team note" }));
-    await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith("Saved to your team's notes in Resources"));
+    await waitFor(() =>
+      expect(h.toast.success).toHaveBeenCalledWith("Saved to your team's notes in Resources"),
+    );
     const note = h.fake.callsTo("resources", "insert")[0]!.payload as Record<string, unknown>;
-    expect(note).toMatchObject({ team_id: "t1", kind: "note", created_by: "user-1", tags: ["ai", "summary"] });
+    expect(note).toMatchObject({
+      team_id: "t1",
+      kind: "note",
+      created_by: "user-1",
+      tags: ["ai", "summary"],
+    });
     expect(String(note["title"])).toContain("Progress summary");
     expect(String(note["content"])).toContain("all good");
   });
@@ -310,14 +373,25 @@ describe("Written drafts (summary, check-in, agenda, study guide, quiz)", () => 
 
   test("a study guide can be built from chosen notes", async () => {
     h.fake.seed("resources", [
-      { id: "n1", team_id: "t1", kind: "note", title: "Recursion notes", content: "x", tags: [], created_by: "user-1", updated_at: "2026-11-01T00:00:00Z" },
+      {
+        id: "n1",
+        team_id: "t1",
+        kind: "note",
+        title: "Recursion notes",
+        content: "x",
+        tags: [],
+        created_by: "user-1",
+        updated_at: "2026-11-01T00:00:00Z",
+      },
     ] as never);
     reply(["Study guide text"]);
     const { user } = renderWithClient(<WriterTool tool="study_guide" teamId="t1" />);
     await user.click(await screen.findByRole("button", { name: /Recursion notes/ }));
     await user.click(screen.getByRole("button", { name: "Make a study guide" }));
     await screen.findByText(/Study guide text/);
-    expect(JSON.parse(String((fetchSpy.mock.calls[0] as [string, RequestInit])[1].body))).toMatchObject({
+    expect(
+      JSON.parse(String((fetchSpy.mock.calls[0] as [string, RequestInit])[1].body)),
+    ).toMatchObject({
       tool: "study_guide",
       noteIds: ["n1"],
     });
@@ -361,30 +435,47 @@ describe("Teammate ideas", () => {
     await user.type(screen.getByLabelText(/what kind of teammate/i), "SQL, React{Enter}");
     await user.click(screen.getByRole("button", { name: "Suggest teammates" }));
     await waitFor(() => expect(h.ai.suggestTeammates).toHaveBeenCalled());
-    expect((h.ai.suggestTeammates.mock.calls[0]![0] as { data: { wantedSkills?: string[] } }).data.wantedSkills).toEqual(["SQL", "React"]);
+    expect(
+      (h.ai.suggestTeammates.mock.calls[0]![0] as { data: { wantedSkills?: string[] } }).data
+        .wantedSkills,
+    ).toEqual(["SQL", "React"]);
   });
 
   test("Accept sends a real team invitation", async () => {
     const { user } = await run();
     await user.click(screen.getByRole("button", { name: "Accept" }));
-    await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith("Invitation sent to Zara Ali."));
-    expect(h.fake.rpcCalls.find((c) => c.name === "invite_student")!.args).toEqual({ _team: "t1", _user: "u9", _role: "member" });
+    await waitFor(() =>
+      expect(h.toast.success).toHaveBeenCalledWith("Invitation sent to Zara Ali."),
+    );
+    expect(h.fake.rpcCalls.find((c) => c.name === "invite_student")!.args).toEqual({
+      _team: "t1",
+      _user: "u9",
+      _role: "member",
+    });
   });
 
   test("a refused invitation shows why", async () => {
     const { user } = await run();
     h.fake.failRpc("invite_student", { message: "Only owners and admins can invite students" });
     await user.click(screen.getByRole("button", { name: "Accept" }));
-    await waitFor(() => expect(h.toast.error).toHaveBeenCalledWith("Only owners and admins can invite students"));
+    await waitFor(() =>
+      expect(h.toast.error).toHaveBeenCalledWith("Only owners and admins can invite students"),
+    );
   });
 
   test("an invitation can be taken back", async () => {
     const { user } = await run();
     await user.click(screen.getByRole("button", { name: "Accept" }));
-    await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith("Invitation sent to Zara Ali."));
+    await waitFor(() =>
+      expect(h.toast.success).toHaveBeenCalledWith("Invitation sent to Zara Ali."),
+    );
     await user.click(await screen.findByRole("button", { name: /undo|take back|cancel/i }));
-    await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith("Invitation to Zara Ali cancelled."));
-    expect(h.fake.rpcCalls.find((c) => c.name === "revoke_invitation")!.args).toEqual({ _id: "inv-1" });
+    await waitFor(() =>
+      expect(h.toast.success).toHaveBeenCalledWith("Invitation to Zara Ali cancelled."),
+    );
+    expect(h.fake.rpcCalls.find((c) => c.name === "revoke_invitation")!.args).toEqual({
+      _id: "inv-1",
+    });
   });
 
   test("an empty result says why", async () => {

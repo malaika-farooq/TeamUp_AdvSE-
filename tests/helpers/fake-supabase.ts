@@ -28,7 +28,15 @@ const ROW_DEFAULTS: Record<string, () => Record<string, unknown>> = {
     position: 1000,
     completed_at: null,
   }),
-  resources: () => ({ content: null, url: null, storage_path: null, file_size: null, mime_type: null, tags: [], version: 1 }),
+  resources: () => ({
+    content: null,
+    url: null,
+    storage_path: null,
+    file_size: null,
+    mime_type: null,
+    tags: [],
+    version: 1,
+  }),
   notifications: () => ({ body: null, link: null, read_at: null }),
   sessions: () => ({ description: null, location: null, recurrence: "none", recurrence_end: null }),
   task_comments: () => ({}),
@@ -75,9 +83,11 @@ export function createFake(initialUserId = "user-1") {
         return { data: null, error: hit.error };
       }
       const rows = (tables[table] ??= []);
-      const cmp = (a: unknown, b: unknown) => (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0);
+      const cmp = (a: unknown, b: unknown) =>
+        String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0;
       // Like the database's row-level rules: you only ever see and change your own notifications.
-      const mine = (r: Row) => table !== "notifications" || r["user_id"] === undefined || r["user_id"] === userId;
+      const mine = (r: Row) =>
+        table !== "notifications" || r["user_id"] === undefined || r["user_id"] === userId;
       const matches = (r: Row) =>
         mine(r) &&
         Object.entries(call.filters).every(([k, v]) =>
@@ -102,7 +112,13 @@ export function createFake(initialUserId = "user-1") {
           const defaults = ROW_DEFAULTS[table];
           if (!defaults) return clone(i);
           const now = new Date().toISOString();
-          return { id: crypto.randomUUID(), created_at: now, updated_at: now, ...defaults(), ...clone(i) };
+          return {
+            id: crypto.randomUUID(),
+            created_at: now,
+            updated_at: now,
+            ...defaults(),
+            ...clone(i),
+          };
         });
         made.forEach((r) => rows.push(r));
         data = made.map(clone);
@@ -284,9 +300,15 @@ export function createFake(initialUserId = "user-1") {
     auth: {
       getSession: async () => {
         if (sessionMode === "signed-out") return { data: { session: null }, error: null };
-        if (sessionMode === "error") return { data: { session: null }, error: new Error("Failed to fetch") };
+        if (sessionMode === "error")
+          return { data: { session: null }, error: new Error("Failed to fetch") };
         return {
-          data: { session: { access_token: "test-token", user: { id: userId, email: "maya.chen@example.edu" } } },
+          data: {
+            session: {
+              access_token: "test-token",
+              user: { id: userId, email: "maya.chen@example.edu" },
+            },
+          },
           error: null,
         };
       },

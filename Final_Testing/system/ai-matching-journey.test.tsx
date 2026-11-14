@@ -10,11 +10,23 @@ import { renderWithClient } from "../../tests/helpers/render";
 
 const PartnersPage = (PartnersRoute as unknown as { component: () => JSX.Element }).component;
 const BEN = { id: "u2", email: "ben@example.edu", user_metadata: { display_name: "Ben Ortiz" } };
-const MAYA = { id: "user-1", email: "maya.chen@example.edu", user_metadata: { display_name: "Maya Chen" } };
+const MAYA = {
+  id: "user-1",
+  email: "maya.chen@example.edu",
+  user_metadata: { display_name: "Maya Chen" },
+};
 
 type Req = { id: string; from: string; to: string; status: "pending" | "accepted" | "declined" };
 let requests: Req[] = [];
-let sessions: { id: string; title: string; starts_at: string; ends_at: string; host: string; invitees: string[]; status: Record<string, string> }[] = [];
+let sessions: {
+  id: string;
+  title: string;
+  starts_at: string;
+  ends_at: string;
+  host: string;
+  invitees: string[];
+  status: Record<string, string>;
+}[] = [];
 const NAMES: Record<string, string> = { "user-1": "Maya Chen", u2: "Ben Ortiz" };
 
 /** The database functions behind partner requests and study sessions, as simple rules. */
@@ -22,7 +34,9 @@ function install() {
   const me = () => h.user!.id;
   h.fake.rpcHandlers["send_partner_request"] = (a) => {
     const to = String(a["_to"]);
-    if (requests.some((r) => (r.from === me() && r.to === to) || (r.from === to && r.to === me()))) {
+    if (
+      requests.some((r) => (r.from === me() && r.to === to) || (r.from === to && r.to === me()))
+    ) {
       return { data: null, error: { message: "You already have a request with this student" } };
     }
     requests.push({ id: `req-${requests.length + 1}`, from: me(), to, status: "pending" });
@@ -49,7 +63,8 @@ function install() {
   });
   h.fake.rpcHandlers["respond_partner_request"] = (a) => {
     const r = requests.find((x) => x.id === a["_request"]);
-    if (!r || r.to !== me()) return { data: null, error: { message: "That request isn't for you" } };
+    if (!r || r.to !== me())
+      return { data: null, error: { message: "That request isn't for you" } };
     r.status = a["_accept"] ? "accepted" : "declined";
     return { data: null, error: null };
   };
@@ -114,9 +129,18 @@ describe("System: AI Teammate Matching, start to finish", () => {
       empty: null,
       suggestions: [
         {
-          id: "u2", rank: 1, name: "Ben Ortiz", avatar: null, major: "Computer Science", university: "Northbridge",
-          sharedCourses: ["CS201 Data Structures"], newSkills: ["SQL"], wantedSkills: ["SQL"], overlapHours: 5,
-          workload: "light", reason: "Has the SQL skills you asked for and shares CS201 with you.",
+          id: "u2",
+          rank: 1,
+          name: "Ben Ortiz",
+          avatar: null,
+          major: "Computer Science",
+          university: "Northbridge",
+          sharedCourses: ["CS201 Data Structures"],
+          newSkills: ["SQL"],
+          wantedSkills: ["SQL"],
+          overlapHours: 5,
+          workload: "light",
+          reason: "Has the SQL skills you asked for and shares CS201 with you.",
         },
       ],
     }));
@@ -126,7 +150,11 @@ describe("System: AI Teammate Matching, start to finish", () => {
     await view.user.click(screen.getByRole("button", { name: "Find study partners" }));
     await screen.findByText(/Ben Ortiz/);
     expect(h.ai.suggestPartners.mock.calls[0]![0]).toEqual({
-      data: { wantedSkills: ["SQL"], windows: [{ weekday: 1, start: 1020, end: 1320 }], avoidHeavy: undefined },
+      data: {
+        wantedSkills: ["SQL"],
+        windows: [{ weekday: 1, start: 1020, end: 1320 }],
+        avoidHeavy: undefined,
+      },
     });
     const card = screen.getByRole("list", { name: /suggested study partners/i });
     expect(card.textContent).toContain("light workload");
@@ -137,7 +165,13 @@ describe("System: AI Teammate Matching, start to finish", () => {
     expect(requests).toEqual([{ id: "req-1", from: "user-1", to: "u2", status: "pending" }]);
 
     // 3. Sending again is refused by the database rules (no duplicate requests).
-    expect((await (await import("../../tests/helpers/harness")).h.fake.client.rpc("send_partner_request", { _to: "u2" })).error?.message).toContain("already");
+    expect(
+      (
+        await (
+          await import("../../tests/helpers/harness")
+        ).h.fake.client.rpc("send_partner_request", { _to: "u2" })
+      ).error?.message,
+    ).toContain("already");
 
     // 4. Ben opens Study Partners, sees the request, and accepts.
     becomes(BEN);
@@ -151,7 +185,16 @@ describe("System: AI Teammate Matching, start to finish", () => {
     // 5. Back as Maya: Ben is now a partner she can plan a session with.
     becomes(MAYA);
     h.ai.proposeSessions = mock(async () => ({
-      proposals: [{ weekday: 1, startMinute: 1080, endMinute: 1170, freeCount: 2, title: "CS201 study session", agenda: "10 min goals · 60 min problems · 20 min recap" }],
+      proposals: [
+        {
+          weekday: 1,
+          startMinute: 1080,
+          endMinute: 1170,
+          freeCount: 2,
+          title: "CS201 study session",
+          agenda: "10 min goals · 60 min problems · 20 min recap",
+        },
+      ],
     }));
     view = renderWithClient(<SessionPlanTool />);
     await view.user.click(await screen.findByLabelText(/Ben Ortiz/));
@@ -159,9 +202,15 @@ describe("System: AI Teammate Matching, start to finish", () => {
     await screen.findByText("CS201 study session");
     expect(h.ai.proposeSessions.mock.calls[0]![0]).toEqual({ data: { partnerIds: ["u2"] } });
     await view.user.click(screen.getByRole("button", { name: /create & invite/i }));
-    await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith("Session created. Your partners were invited."));
+    await waitFor(() =>
+      expect(h.toast.success).toHaveBeenCalledWith("Session created. Your partners were invited."),
+    );
     expect(sessions).toHaveLength(1);
-    expect(sessions[0]).toMatchObject({ title: "CS201 study session", host: "user-1", invitees: ["u2"] });
+    expect(sessions[0]).toMatchObject({
+      title: "CS201 study session",
+      host: "user-1",
+      invitees: ["u2"],
+    });
     expect(new Date(sessions[0]!.starts_at).getTime()).toBeGreaterThan(Date.now());
 
     // 6. Ben sees the invitation in his sessions tab and joins.

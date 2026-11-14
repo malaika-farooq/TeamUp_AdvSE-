@@ -40,10 +40,18 @@ describe("Tasks by status", () => {
     ]);
   });
   test("no tasks gives zeros, not NaN", () => {
-    expect(statusBreakdown([]).map((s) => [s.count, s.percent])).toEqual([[0, 0], [0, 0], [0, 0]]);
+    expect(statusBreakdown([]).map((s) => [s.count, s.percent])).toEqual([
+      [0, 0],
+      [0, 0],
+      [0, 0],
+    ]);
   });
   test("the shares add up to about 100 with three tasks", () => {
-    const out = statusBreakdown([task(), task({ status: "in_progress" }), task({ status: "done" })]);
+    const out = statusBreakdown([
+      task(),
+      task({ status: "in_progress" }),
+      task({ status: "done" }),
+    ]);
     expect(out.reduce((s, c) => s + c.percent, 0)).toBeGreaterThanOrEqual(99);
   });
 });
@@ -69,7 +77,10 @@ describe("Overview figures", () => {
     });
   });
   test("a finished task is never overdue or due soon", () => {
-    const s = overviewStats([task({ status: "done", due_date: at(-5) }), task({ status: "done", due_date: at(2) })], NOW);
+    const s = overviewStats(
+      [task({ status: "done", due_date: at(-5) }), task({ status: "done", due_date: at(2) })],
+      NOW,
+    );
     expect(s.overdue).toBe(0);
     expect(s.dueThisWeek).toBe(0);
     expect(s.completionPercent).toBe(100);
@@ -162,7 +173,10 @@ describe("Per-member contributions", () => {
   test("ordered by finished tasks, then assigned, then name", () => {
     expect(stats().map((s) => s.id)).toEqual(["ann", "ben", "cy"]);
     const tie = memberContributions({
-      members: [{ id: "z", name: "Zed" }, { id: "a", name: "Amy" }],
+      members: [
+        { id: "z", name: "Zed" },
+        { id: "a", name: "Amy" },
+      ],
       tasks: [],
       now: NOW,
     });
@@ -188,11 +202,16 @@ describe("Per-member contributions", () => {
     expect(topContributor([])).toBeNull();
     const tied = memberContributions({
       members: people,
-      tasks: [task({ status: "done", assignee_id: "ann" }), task({ status: "done", assignee_id: "ben" })],
+      tasks: [
+        task({ status: "done", assignee_id: "ann" }),
+        task({ status: "done", assignee_id: "ben" }),
+      ],
       now: NOW,
     });
     expect(topContributor(tied)).toBeNull();
-    expect(topContributor(memberContributions({ members: people, tasks: [task()], now: NOW }))).toBeNull();
+    expect(
+      topContributor(memberContributions({ members: people, tasks: [task()], now: NOW })),
+    ).toBeNull();
   });
 });
 
@@ -208,7 +227,12 @@ describe("Activity history rules", () => {
     expect(activityMeta("whatever")).toEqual({ group: "other", label: "Activity" });
   });
   test("the actions of a group", () => {
-    expect(actionsOfGroup("tasks").sort()).toEqual(["comment_added", "task_created", "task_deleted", "task_updated"]);
+    expect(actionsOfGroup("tasks").sort()).toEqual([
+      "comment_added",
+      "task_created",
+      "task_deleted",
+      "task_updated",
+    ]);
     expect(actionsOfGroup("meetings")).toEqual(["session_created"]);
     expect(actionsOfGroup("other")).toEqual([]);
   });
@@ -234,7 +258,13 @@ describe("Activity history rules", () => {
     expect(run({ actor: "ben", group: "tasks", days: 7 })).toBe(0);
   });
   test("how busy each person has been", () => {
-    expect(actionsByPerson(all, [{ id: "ann", name: "Ann" }, { id: "ben", name: "Ben" }, { id: "cy", name: "Cy" }])).toEqual([
+    expect(
+      actionsByPerson(all, [
+        { id: "ann", name: "Ann" },
+        { id: "ben", name: "Ben" },
+        { id: "cy", name: "Cy" },
+      ]),
+    ).toEqual([
       { id: "ann", name: "Ann", count: 2 },
       { id: "ben", name: "Ben", count: 2 },
       { id: "cy", name: "Cy", count: 0 },

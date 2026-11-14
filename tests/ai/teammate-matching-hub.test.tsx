@@ -12,7 +12,12 @@ import { renderWithClient } from "../helpers/render";
 function seedTeams(...names: string[]) {
   h.fake.seed(
     "team_members",
-    names.map((_, i) => ({ team_id: `t${i + 1}`, user_id: "user-1", role: "owner", joined_at: "2026-01-01" })),
+    names.map((_, i) => ({
+      team_id: `t${i + 1}`,
+      user_id: "user-1",
+      role: "owner",
+      joined_at: "2026-01-01",
+    })),
   );
   h.fake.seed(
     "teams",

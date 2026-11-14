@@ -70,7 +70,9 @@ export function ActivityHistory({
             id="ah-type"
             className={selectClass}
             value={filters.group}
-            onChange={(e) => setFilters({ ...filters, group: e.target.value as ActivityGroup | "all" })}
+            onChange={(e) =>
+              setFilters({ ...filters, group: e.target.value as ActivityGroup | "all" })
+            }
           >
             {ACTIVITY_GROUPS.map((g) => (
               <option key={g.key} value={g.key}>
@@ -134,7 +136,11 @@ export function ActivityHistory({
                   const name = who?.profile?.display_name ?? "A former member";
                   const meta = activityMeta(a.action);
                   return (
-                    <li key={a.id} className="flex items-start gap-3 p-4 text-sm" data-action={a.action}>
+                    <li
+                      key={a.id}
+                      className="flex items-start gap-3 p-4 text-sm"
+                      data-action={a.action}
+                    >
                       <UserAvatar name={name} path={who?.profile?.avatar_url} className="size-7" />
                       <div className="min-w-0 flex-1">
                         <p>
@@ -144,7 +150,9 @@ export function ActivityHistory({
                           <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
                             {meta.label}
                           </Badge>
-                          <span title={new Date(a.created_at).toLocaleString()}>{timeAgo(a.created_at)}</span>
+                          <span title={new Date(a.created_at).toLocaleString()}>
+                            {timeAgo(a.created_at)}
+                          </span>
                         </p>
                       </div>
                     </li>
@@ -158,7 +166,12 @@ export function ActivityHistory({
               Showing {items.length} event{items.length === 1 ? "" : "s"}
             </span>
             {query.hasNextPage && (
-              <Button variant="outline" size="sm" onClick={() => void query.fetchNextPage()} disabled={query.isFetchingNextPage}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void query.fetchNextPage()}
+                disabled={query.isFetchingNextPage}
+              >
                 {query.isFetchingNextPage && <Loader2 className="mr-2 size-4 animate-spin" />}
                 Load more
               </Button>

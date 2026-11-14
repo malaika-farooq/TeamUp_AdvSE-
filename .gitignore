@@ -44,3 +44,5 @@ coverage/
 *.sln
 *.sw?
 .vercel
+# Saved browser login for Playwright (contains a signed-in session)
+playwright/.auth/

@@ -75,7 +75,9 @@ beforeAll(async () => {
     grant execute on function auth.uid() to authenticated, anon, service_role;
   `);
   const dir = join(import.meta.dir, "../../drizzle/migrations");
-  for (const f of readdirSync(dir).filter((x) => /^\d{4}_.*\.sql$/.test(x)).sort()) {
+  for (const f of readdirSync(dir)
+    .filter((x) => /^\d{4}_.*\.sql$/.test(x))
+    .sort()) {
     await db.exec(readFileSync(join(dir, f), "utf8"));
   }
   await db.exec(`
@@ -101,20 +103,29 @@ beforeAll(async () => {
   `);
 });
 afterAll(() => {
-  if (!has) console.warn("Database security tests skipped: PGlite is not installed (npm i -D @electric-sql/pglite).");
+  if (!has)
+    console.warn(
+      "Database security tests skipped: PGlite is not installed (npm i -D @electric-sql/pglite).",
+    );
 });
 
 const t = has ? test : test.skip;
 
 describe("Database: every migration applies", () => {
   t("0000 to the latest apply cleanly in order", async () => {
-    const files = readdirSync(join(import.meta.dir, "../../drizzle/migrations")).filter((x) => /^\d{4}_.*\.sql$/.test(x));
+    const files = readdirSync(join(import.meta.dir, "../../drizzle/migrations")).filter((x) =>
+      /^\d{4}_.*\.sql$/.test(x),
+    );
     expect(files.length).toBeGreaterThanOrEqual(13);
-    expect(Number((await db.query("select count(*)::int n from public.teams")).rows[0]!["n"])).toBe(2);
+    expect(Number((await db.query("select count(*)::int n from public.teams")).rows[0]!["n"])).toBe(
+      2,
+    );
   });
   t("running the later migrations a second time is harmless", async () => {
     const dir = join(import.meta.dir, "../../drizzle/migrations");
-    for (const f of readdirSync(dir).filter((x) => /^00(08|09|1\d)_.*\.sql$/.test(x)).sort()) {
+    for (const f of readdirSync(dir)
+      .filter((x) => /^00(08|09|1\d)_.*\.sql$/.test(x))
+      .sort()) {
       await db.exec(readFileSync(join(dir, f), "utf8"));
     }
   });
@@ -143,11 +154,15 @@ describe("Database: an outsider sees nothing of a private team", () => {
     expect(seen).toEqual(["Public circle"]);
   });
   t("cannot see a student who is not discoverable", async () => {
-    const seen = (await as(D, "select display_name from public.profiles order by 1")).map((r) => r["display_name"]);
+    const seen = (await as(D, "select display_name from public.profiles order by 1")).map(
+      (r) => r["display_name"],
+    );
     expect(seen).toEqual(["Ann", "Dee", "Eve"]);
   });
   t("teammates can see each other's profile even when not discoverable", async () => {
-    const seen = (await as(B, "select display_name from public.profiles order by 1")).map((r) => r["display_name"]);
+    const seen = (await as(B, "select display_name from public.profiles order by 1")).map(
+      (r) => r["display_name"],
+    );
     expect(seen).toContain("Cy");
     expect(seen).not.toContain("Dee");
   });
@@ -161,67 +176,147 @@ describe("Database: an outsider cannot change a team's data", () => {
   const forTeam = (table: string, cols: string, vals: string) =>
     `insert into public.${table} (${cols}) values (${vals})`;
   t("cannot add a task", async () => {
-    expect(await refused(D, forTeam("tasks", "team_id, title, created_by", `'${T}','x','${D}'`))).toBe("error");
+    expect(
+      await refused(D, forTeam("tasks", "team_id, title, created_by", `'${T}','x','${D}'`)),
+    ).toBe("error");
   });
   t("cannot share a resource", async () => {
-    expect(await refused(D, forTeam("resources", "team_id, kind, title, created_by", `'${T}','note','x','${D}'`))).toBe("error");
+    expect(
+      await refused(
+        D,
+        forTeam("resources", "team_id, kind, title, created_by", `'${T}','note','x','${D}'`),
+      ),
+    ).toBe("error");
   });
   t("cannot schedule a session", async () => {
     expect(
-      await refused(D, forTeam("sessions", "team_id, title, starts_at, ends_at, created_by", `'${T}','x', now(), now() + interval '1 hour','${D}'`)),
+      await refused(
+        D,
+        forTeam(
+          "sessions",
+          "team_id, title, starts_at, ends_at, created_by",
+          `'${T}','x', now(), now() + interval '1 hour','${D}'`,
+        ),
+      ),
     ).toBe("error");
   });
   t("cannot write into the activity history", async () => {
-    expect(await refused(D, forTeam("activity_logs", "team_id, actor_id, action, summary", `'${T}','${D}','task_created','x'`))).toBe("error");
+    expect(
+      await refused(
+        D,
+        forTeam(
+          "activity_logs",
+          "team_id, actor_id, action, summary",
+          `'${T}','${D}','task_created','x'`,
+        ),
+      ),
+    ).toBe("error");
   });
   t("cannot comment on a task", async () => {
-    expect(await refused(D, forTeam("task_comments", "task_id, author_id, body", `'${TASK}','${D}','hi'`))).toBe("error");
+    expect(
+      await refused(
+        D,
+        forTeam("task_comments", "task_id, author_id, body", `'${TASK}','${D}','hi'`),
+      ),
+    ).toBe("error");
   });
   t("cannot change or delete the team's tasks, resources or sessions", async () => {
-    expect(await refused(D, `update public.tasks set title='hacked' where id='${TASK}' returning id`)).toBe("no-rows");
-    expect(await refused(D, `delete from public.tasks where id='${TASK}' returning id`)).toBe("no-rows");
-    expect(await refused(D, `update public.resources set title='hacked' where id='${RES}' returning id`)).toBe("no-rows");
-    expect(await refused(D, `delete from public.resources where id='${RES}' returning id`)).toBe("no-rows");
-    expect(await refused(D, `delete from public.sessions where id='${SESSION}' returning id`)).toBe("no-rows");
+    expect(
+      await refused(D, `update public.tasks set title='hacked' where id='${TASK}' returning id`),
+    ).toBe("no-rows");
+    expect(await refused(D, `delete from public.tasks where id='${TASK}' returning id`)).toBe(
+      "no-rows",
+    );
+    expect(
+      await refused(D, `update public.resources set title='hacked' where id='${RES}' returning id`),
+    ).toBe("no-rows");
+    expect(await refused(D, `delete from public.resources where id='${RES}' returning id`)).toBe(
+      "no-rows",
+    );
+    expect(await refused(D, `delete from public.sessions where id='${SESSION}' returning id`)).toBe(
+      "no-rows",
+    );
   });
   t("cannot rename or delete the team, or add themselves to it", async () => {
-    expect(await refused(D, `update public.teams set name='hacked' where id='${T}' returning id`)).toBe("no-rows");
-    expect(await refused(D, `delete from public.teams where id='${T}' returning id`)).toBe("no-rows");
-    expect(await refused(D, `insert into public.team_members (team_id, user_id, role) values ('${T}','${D}','owner')`)).toBe("error");
+    expect(
+      await refused(D, `update public.teams set name='hacked' where id='${T}' returning id`),
+    ).toBe("no-rows");
+    expect(await refused(D, `delete from public.teams where id='${T}' returning id`)).toBe(
+      "no-rows",
+    );
+    expect(
+      await refused(
+        D,
+        `insert into public.team_members (team_id, user_id, role) values ('${T}','${D}','owner')`,
+      ),
+    ).toBe("error");
   });
   t("signed-out visitors see and change nothing", async () => {
     expect(await refused(null, "select * from public.tasks")).toBe("no-rows");
-    expect(await refused(null, `insert into public.tasks (team_id, title, created_by) values ('${T}','x','${A}')`)).toBe("error");
+    expect(
+      await refused(
+        null,
+        `insert into public.tasks (team_id, title, created_by) values ('${T}','x','${A}')`,
+      ),
+    ).toBe("error");
   });
 });
 
 describe("Database: nobody can pretend to be someone else", () => {
   const as_B = (sql: string) => refused(B, sql);
   t("a task cannot be created in someone else's name", async () => {
-    expect(await as_B(`insert into public.tasks (team_id, title, created_by) values ('${T}','x','${A}')`)).toBe("error");
+    expect(
+      await as_B(
+        `insert into public.tasks (team_id, title, created_by) values ('${T}','x','${A}')`,
+      ),
+    ).toBe("error");
   });
   t("a resource cannot be shared in someone else's name", async () => {
-    expect(await as_B(`insert into public.resources (team_id, kind, title, created_by) values ('${T}','note','x','${A}')`)).toBe("error");
+    expect(
+      await as_B(
+        `insert into public.resources (team_id, kind, title, created_by) values ('${T}','note','x','${A}')`,
+      ),
+    ).toBe("error");
   });
   t("a comment cannot be written in someone else's name", async () => {
-    expect(await as_B(`insert into public.task_comments (task_id, author_id, body) values ('${TASK}','${A}','x')`)).toBe("error");
+    expect(
+      await as_B(
+        `insert into public.task_comments (task_id, author_id, body) values ('${TASK}','${A}','x')`,
+      ),
+    ).toBe("error");
   });
   t("an activity entry cannot be written in someone else's name", async () => {
-    expect(await as_B(`insert into public.activity_logs (team_id, actor_id, action, summary) values ('${T}','${A}','task_created','fake')`)).toBe("error");
+    expect(
+      await as_B(
+        `insert into public.activity_logs (team_id, actor_id, action, summary) values ('${T}','${A}','task_created','fake')`,
+      ),
+    ).toBe("error");
   });
   t("a task cannot be assigned to someone outside the team", async () => {
-    expect(await as_B(`update public.tasks set assignee_id='${D}' where id='${TASK}' returning id`)).toBe("error");
+    expect(
+      await as_B(`update public.tasks set assignee_id='${D}' where id='${TASK}' returning id`),
+    ).toBe("error");
   });
   t("a task cannot be moved to another team or re-attributed", async () => {
-    expect(await as_B(`update public.tasks set team_id='${U}' where id='${TASK}' returning id`)).toBe("error");
-    expect(await as_B(`update public.tasks set created_by='${B}' where id='${TASK}' returning id`)).toBe("error");
+    expect(
+      await as_B(`update public.tasks set team_id='${U}' where id='${TASK}' returning id`),
+    ).toBe("error");
+    expect(
+      await as_B(`update public.tasks set created_by='${B}' where id='${TASK}' returning id`),
+    ).toBe("error");
   });
 });
 
 describe("Database: the history cannot be rewritten", () => {
   t("nobody can edit or delete an activity entry", async () => {
-    expect(await as(A, "select count(*)::int n from public.activity_logs").then((r) => Number(r[0]!["n"]))).toBeGreaterThan(0);
-    expect(await refused(A, "update public.activity_logs set summary='edited' returning id")).toBe("error");
+    expect(
+      await as(A, "select count(*)::int n from public.activity_logs").then((r) =>
+        Number(r[0]!["n"]),
+      ),
+    ).toBeGreaterThan(0);
+    expect(await refused(A, "update public.activity_logs set summary='edited' returning id")).toBe(
+      "error",
+    );
     expect(await refused(A, "delete from public.activity_logs returning id")).toBe("error");
     expect(await refused(B, "delete from public.activity_logs returning id")).toBe("error");
   });
@@ -229,44 +324,118 @@ describe("Database: the history cannot be rewritten", () => {
 
 describe("Database: roles inside a team", () => {
   t("a member cannot delete or rewrite the owner's task", async () => {
-    expect(await refused(C, `update public.tasks set status='done' where id='${TASK}' returning id`)).toBe("no-rows");
-    expect(await refused(C, `delete from public.tasks where id='${TASK}' returning id`)).toBe("no-rows");
+    expect(
+      await refused(C, `update public.tasks set status='done' where id='${TASK}' returning id`),
+    ).toBe("no-rows");
+    expect(await refused(C, `delete from public.tasks where id='${TASK}' returning id`)).toBe(
+      "no-rows",
+    );
   });
   t("the assignee can update their task but not delete it", async () => {
-    expect((await as(B, `update public.tasks set status='in_progress' where id='${TASK}' returning id`)).length).toBe(1);
-    expect(await refused(B, `delete from public.tasks where id='${TASK}' returning id`)).toBe("no-rows");
+    expect(
+      (await as(B, `update public.tasks set status='in_progress' where id='${TASK}' returning id`))
+        .length,
+    ).toBe(1);
+    expect(await refused(B, `delete from public.tasks where id='${TASK}' returning id`)).toBe(
+      "no-rows",
+    );
   });
   t("a member cannot edit or delete the owner's note", async () => {
-    expect(await refused(B, `update public.resources set content='x' where id='${RES}' returning id`)).toBe("no-rows");
-    expect(await refused(B, `delete from public.resources where id='${RES}' returning id`)).toBe("no-rows");
+    expect(
+      await refused(B, `update public.resources set content='x' where id='${RES}' returning id`),
+    ).toBe("no-rows");
+    expect(await refused(B, `delete from public.resources where id='${RES}' returning id`)).toBe(
+      "no-rows",
+    );
   });
   t("a member cannot promote themselves, remove the owner or delete the team", async () => {
-    expect(await refused(B, `update public.team_members set role='owner' where team_id='${T}' and user_id='${B}' returning user_id`)).not.toBe(false);
-    expect(Number((await db.query(`select count(*)::int n from public.team_members where team_id='${T}' and role='owner'`)).rows[0]!["n"])).toBe(1);
-    expect(await refused(B, `delete from public.team_members where team_id='${T}' and user_id='${A}' returning user_id`)).not.toBe(false);
-    expect(await refused(B, `delete from public.teams where id='${T}' returning id`)).toBe("no-rows");
+    expect(
+      await refused(
+        B,
+        `update public.team_members set role='owner' where team_id='${T}' and user_id='${B}' returning user_id`,
+      ),
+    ).not.toBe(false);
+    expect(
+      Number(
+        (
+          await db.query(
+            `select count(*)::int n from public.team_members where team_id='${T}' and role='owner'`,
+          )
+        ).rows[0]!["n"],
+      ),
+    ).toBe(1);
+    expect(
+      await refused(
+        B,
+        `delete from public.team_members where team_id='${T}' and user_id='${A}' returning user_id`,
+      ),
+    ).not.toBe(false);
+    expect(await refused(B, `delete from public.teams where id='${T}' returning id`)).toBe(
+      "no-rows",
+    );
   });
   t("an owner can manage everything", async () => {
-    expect((await as(A, `update public.tasks set priority='high' where id='${TASK}' returning id`)).length).toBe(1);
-    expect((await as(A, `update public.resources set title='Renamed' where id='${RES}' returning id`)).length).toBe(1);
+    expect(
+      (await as(A, `update public.tasks set priority='high' where id='${TASK}' returning id`))
+        .length,
+    ).toBe(1);
+    expect(
+      (await as(A, `update public.resources set title='Renamed' where id='${RES}' returning id`))
+        .length,
+    ).toBe(1);
   });
 });
 
 describe("Database: notifications and free time stay private", () => {
   t("nobody can send a notification to a stranger", async () => {
-    expect(await refused(B, `insert into public.notifications (user_id, type, title) values ('${D}','x','spam')`)).toBe("error");
+    expect(
+      await refused(
+        B,
+        `insert into public.notifications (user_id, type, title) values ('${D}','x','spam')`,
+      ),
+    ).toBe("error");
   });
   t("teammates can notify each other", async () => {
-    expect((await as(B, `insert into public.notifications (user_id, type, title) values ('${C}','resource_shared','hello')`)).length).toBe(0);
-    expect(Number((await db.query(`select count(*)::int n from public.notifications where user_id='${C}' and title='hello'`)).rows[0]!["n"])).toBe(1);
+    expect(
+      (
+        await as(
+          B,
+          `insert into public.notifications (user_id, type, title) values ('${C}','resource_shared','hello')`,
+        )
+      ).length,
+    ).toBe(0);
+    expect(
+      Number(
+        (
+          await db.query(
+            `select count(*)::int n from public.notifications where user_id='${C}' and title='hello'`,
+          )
+        ).rows[0]!["n"],
+      ),
+    ).toBe(1);
   });
   t("you cannot read or change another person's notification", async () => {
     expect(await count(C, "notifications", "title = 'Private for Ben'")).toBe(0);
-    expect(await refused(C, `update public.notifications set read_at = now() where title = 'Private for Ben' returning id`)).toBe("no-rows");
-    expect(await refused(C, `delete from public.notifications where title = 'Private for Ben' returning id`)).toBe("no-rows");
+    expect(
+      await refused(
+        C,
+        `update public.notifications set read_at = now() where title = 'Private for Ben' returning id`,
+      ),
+    ).toBe("no-rows");
+    expect(
+      await refused(
+        C,
+        `delete from public.notifications where title = 'Private for Ben' returning id`,
+      ),
+    ).toBe("no-rows");
   });
   t("a notification's text cannot be rewritten even by its owner", async () => {
-    expect(await refused(B, `update public.notifications set title='forged' where title='Private for Ben' returning id`)).toBe("error");
+    expect(
+      await refused(
+        B,
+        `update public.notifications set title='forged' where title='Private for Ben' returning id`,
+      ),
+    ).toBe("error");
   });
   t("teammates see free time only through the team function, not the table", async () => {
     expect(await count(C, "availability_slots")).toBe(0);

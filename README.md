@@ -1,195 +1,253 @@
 # TeamUp
 
-TeamUp is a collaborative study and team-planning web app. Students create or join teams, plan and assign tasks, schedule meetings, share resources, find study partners, and use an AI assistant that works from their own team's data.
+TeamUp is a collaborative study and team-planning web app. Students create or join teams, plan and assign tasks, find common meeting times, share notes and links, get notified about deadlines, follow their team's progress, find study partners, and use an AI feature (**AI Teammate Matching**) that works from their own profile, skills, availability and workload.
 
-## Features
+## 1. Project information
 
-- **Profiles:** profile photo, enrolled courses, skills with a 1–5 level, and weekly availability (quick Morning/Afternoon/Evening blocks or exact times), editable any time in Settings, with a completeness meter.
-- **Meeting times:** every member marks weekly free time; the team's **Meeting times** tab shows a free-time map, ranks the best common times for a 30 min to 2 h meeting (most people free first, with who can't make it), converts teammates' time zones, reminds people who haven't added any, and books the chosen time as a team session in one click.
-- **Task board:** To Do / In Progress / Done columns with drag-and-drop or a status menu, a + on each column to add a task there, assignees, due dates ("Due tomorrow", "Overdue by 2 days"), priorities, edit details after creating, filters and search, checklist and comments, overdue and progress counts, and notifications when work is assigned, re-dated or finished.
-- **Shared notes and links:** each team has notes (Markdown), web links and files with tags, search, filters, a full-note reader, edit and delete (with confirmation), conflict detection when two people edit at once, safe links (only http/https), and a notification to teammates when something new is shared.
-- **Notifications:** a bell with unread count and live updates, a full Notifications page (All/Unread, grouped by day, mark read/unread, delete, clear read), notifications that open the right page, and automatic deadline reminders for tasks due within 24 hours, overdue tasks and sessions about to start.
-- **Accounts:** email/password and Google sign-in, plus a three-step onboarding.
-- **Teams:** public or private teams with owner / admin / member roles, plus a full invitation and request workflow (see below).
-- **Tasks and calendar:** priorities, due dates, assignees, checklists, comments, study sessions with RSVP.
-- **Resources:** notes, links and files per team (private storage).
-- **Study partners:** requests, accepted partners, and group study sessions with accept/decline.
-- **AI Teammate Matching:** study-partner matching and group-session planning from profile, skills, availability and workload, plus the additional AI features: task plans and breakdowns, progress summaries, weekly check-ins, meeting agendas, study guides, quizzes, teammate ideas, and saved chat threads.
+|                         |                                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Team ID**             |  6  |
+| **Repository**          | <https://github.com/malaika-farooq/TeamUp_AdvSE-> (branch `latest`)                                                                                          |
+| **Final tested commit** | Run `git rev-parse HEAD` on the branch you submit and write the hash here: `__________`. The run that verified it is `Final_Testing/reports/TEST_REPORT.md`. |
+| **Live deployment**     | Vercel (see [Deployment] (#deployment))  https://teamupadvse.vercel.app/     | 
 
-## Tech stack
+### Team
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | React 19, TypeScript, TanStack Start / Router / Query, Tailwind CSS, shadcn/ui, Motion, dnd-kit, Recharts |
-| Server | TanStack Start server functions and server routes, built with Nitro |
-| Data and auth | Supabase: PostgreSQL, Auth (JWT), Row Level Security, Storage, realtime |
-| AI | NVIDIA NIM (OpenAI-compatible API), called only from the server |
+| Member             | Student ID             | Area                                                                                                                                                    |
+| ------------------ | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Malaika Farooq** | 1002311562             | Product Workflow, frontend and UI/UX, all six functionalities, AI integration, database migrations and security hardening, deployment, final testing and release |
+| Krishan Lnu        | 1002306864             | Testing documentation, requirement, system and regression test cases, JMeter load plan, Playwright tests                                                |
+| Aditi Vishal       | 1002387938             | Backend Development and business-rule review and Integration, testing review                                                                                                                       |
+| Amogh Dhole        | 1002055522             | Database schema design and migration testing review                                                                                                                                  |
 
-## Run locally
+### Who built what (from the git history)
 
-Requirements: [Bun](https://bun.sh/) or Node.js 20+ with npm.
+On the submitted branch (`latest`), **23 of the 33 commits (about 70%) are Malaika's** and 10 are Krishan's. The features table below says which part each person delivered; every migration from `0007` to `0013`, every screen described in section 8, the AI feature, and all test suites under `tests/` and `Final_Testing/` were added by Malaika. See `git shortlog -sn latest` to check.
 
-1. Install dependencies:
+| Contributor    | Commits | Delivered                                                                                                                                                                                                              |
+| -------------- | ------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Malaika Farooq |      23 | Project structure, Supabase integration and authentication, Functionalities 1-6, AI Teammate Matching and the additional AI features, migrations 0007-0013, 800+ automated tests, final test suites, Vercel deployment |
+| Krishan Lnu    |      10 | Testing documentation (`tests/test_results`, `Tests_Requirements/`), requirement / system / regression / load test cases, JMeter plan, Playwright specs                                                                |
 
-   ```sh
-   bun install --frozen-lockfile    # or: npm install
-   ```
+## 2. Features
 
-2. Create your environment file and fill it in (see [Environment variables](#environment-variables)):
+| Functionality                                  | What it does                                                                                                                                                                                                                      | Built by |
+| ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| **1. Profiles**                                | Photo, enrolled courses, skills (1-5), weekly availability (quick blocks or exact times), completeness meter                                                                                                                      | Malaika  |
+| **2. Teams, invitations, roles**               | Public/private teams, invitation links and direct invitations, join requests with approve/decline, owner / admin / member permissions enforced in the database                                                                    | Malaika  |
+| **3. Meeting times**                           | Every member marks free time; the team's **Meeting times** tab shows a free-time map, ranks the best common times (30 min-2 h), converts time zones, reminds people who haven't added any, and books the chosen time in one click | Malaika  |
+| **4. Task board**                              | To Do / In Progress / Done, drag-and-drop or status menu, assignees, due dates ("Overdue by 2 days"), priorities, edit after creating, filters, checklist, comments                                                               | Malaika  |
+| **5. Shared notes, links and notifications**   | Markdown notes, safe web links and files with tags and search, edit conflict detection; a bell, a Notifications page, and automatic deadline reminders                                                                            | Malaika  |
+| **6. Progress dashboard and activity history** | **Progress** tab (tasks by status, upcoming deadlines, per-member contributions) and **Activity** tab (filters by person, type and period, paged history)                                                                         | Malaika  |
+| **AI Teammate Matching**                       | Suggests study partners and group sessions from profile, skills, availability and workload; send requests, plan and book sessions                                                                                                 | Malaika  |
+| **Additional AI features**                     | Plan tasks, break down a task, progress summary, weekly check-in, meeting agenda, study guide, practice quiz, teammate ideas, saved chat threads                                                                                  | Malaika  |
+| **Sign-in**                                    | Email/password and Google, three-step onboarding, JWT-protected server calls                                                                                                                                                      | Malaika  |
+| **Test documentation and load/browser tests**  | Requirement, system, regression and load test cases, JMeter plan, Playwright specs                                                                                                                                                | Krishan  |
 
-   ```sh
-   cp .env.example .env
-   ```
-
-   **Important:** `.env` is not stored in git, and `.env.example` only contains placeholders
-   (`https://your-project-ref.supabase.co`). You must replace the Supabase URL and publishable key with the
-   real ones for the project you want to use (ask the project owner, or copy them from Supabase → Project
-   Settings → API). If you leave the placeholders, sign-in fails with **"Failed to fetch"**. Restart
-   `bun run dev` after changing `.env`.
-
-3. Set up the database (see [Database setup](#database-setup)).
-4. Start the dev server and open <http://localhost:3000>:
-
-   ```sh
-   bun run dev    # or: npm run dev
-   ```
-
-### Environment variables
-
-| Variable | Where it is used | Notes |
-| --- | --- | --- |
-| `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `VITE_SUPABASE_PROJECT_ID` | Browser | Public values only |
-| `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_PROJECT_ID` | Server | Same project as above |
-| `NVIDIA_API_KEY` | Server only | Create one at <https://build.nvidia.com/settings/api-keys>. Without it AI Teammate Matching shows "not configured"; the rest of the app works |
-| `NVIDIA_MODEL` | Server only | Optional. Default `nvidia/nemotron-3.5-lightning-30b-a3b` |
-
-Never put a private key, service-role key or database password in a `VITE_*` variable (those reach the browser), and never commit `.env`.
-
-### Database setup
-
-Migrations are plain SQL files in `drizzle/migrations/`. Run them **in order** in the Supabase SQL editor:
-
-| File | Adds |
-| --- | --- |
-| `0000_studysync_core_schema.sql` | Core tables, RLS, signup trigger (`handle_new_user`) |
-| `0001_storage_policies.sql` | Private file and avatar storage policies |
-| `0002_ai_chat_threads.sql` | `ai_threads`, `ai_messages` |
-| `0003_ai_team_context_functions.sql` | Aggregate-only helper functions for AI context |
-| `0004_teammates_can_read_profiles.sql` | Teammate profile visibility |
-| `0005_study_partners.sql` | Partner requests, study sessions, matching RPCs |
-| `0006_partner_time_preferences.sql` | Time-window preference matching |
-| `0007_profile_completion.sql` | Storage buckets (`avatars`, `team-files`), de-duplicates skills/courses, all-or-nothing save functions for courses, skills and availability, partner photos |
-| `0008_team_workflow.sql` | Team roles and the invitation / join-request workflow. All membership, role, invitation and request changes now go through checked functions (before, any student could write those tables directly). Run after 0007 |
-| `0009_member_permissions.sql` | Role-based permissions for team content: members can only change their own tasks/sessions/notes/files, admins manage everything except visibility and deletion, authorship can't be rewritten. Run after 0008 |
-| `0010_team_availability.sql` | Lets team members read each other's weekly free time (nothing else) and send a once-a-day reminder to teammates who haven't marked any. Powers the team's **Meeting times** tab. Run after 0009 |
-| `0011_task_board.sql` | Task board: moves old "In Review" tasks to In Progress, keeps each task's finished time correct in the database, only allows assigning tasks to team members, and unassigns a person's tasks when they leave the team. Run after 0010 |
-| `0012_resources_and_notifications.sql` | Shared notes and links: edit versions (so two people can't silently overwrite each other), links must be web addresses, size limits. Notifications: deadline reminders (task due within 24 h, overdue, session starting soon) created once each, and notifications can only be marked read/unread or deleted, never rewritten. Run after 0011 |
-
-If study-partner features say matching "isn't set up in the database yet", migrations 0005 and 0006 have not been run.
-
-If saving courses, skills, availability or a profile photo says "isn't set up", migration 0007 has not been run. If team invitations, join requests or role changes say "isn't set up", migration 0008 has not been run. If notifications never show deadline reminders, migration 0012 has not been run. If the Meeting times tab says "aren't set up", migration 0010 has not been run. Migration 0009 has no screen message: if members can still edit or delete each other's items, run it.
-
-**Test data (optional):** open `supabase/seed.sql`, set `my_email` to the email of an account you have already signed up with, then run it in the SQL editor. It creates sample students (`@teamup.test`), courses, skills, availability, teams, tasks, sessions, partner requests and notifications around your account. Cleanup deletes the `@teamup.test` users and the seeded teams.
-
-### Supabase auth settings
-
-- **Email confirmation:** if "Confirm email" is on (Authentication → Providers → Email), new users must click the emailed link before signing in, and the built-in mailer is rate-limited. Turn it off while testing.
-- **Google sign-in:** add `http://localhost:3000` to Authentication → URL Configuration → Redirect URLs.
-
-## How teams, invitations and requests work
-
-| What | Owner | Admin | Member |
-| --- | :---: | :---: | :---: |
-| See tasks, sessions, files and activity | Yes | Yes | Yes |
-| Create tasks, sessions and notes, upload files, comment | Yes | Yes | Yes |
-| Edit a task | Any | Any | Own, or assigned to them |
-| Delete a task | Any | Any | Own |
-| Edit or delete a session, note or file | Any | Any | Own |
-| Delete a comment | Any | Any | Own |
-| Invite people, answer join requests, remove members | Yes | Yes (admins can only remove plain members) | No |
-| Edit team details | Yes | Yes | No |
-| Change admin roles, transfer ownership | Yes | No | No |
-| Make the team public or private, delete the team | Yes | No | No |
-
-The Members tab shows this table with your own role highlighted, and the screens hide or disable anything your role can't do.
-
-- **Join requests:** students ask to join a *public* team from Discover with an optional message. Owners and admins are notified, see who is asking (name, photo, courses, skills) and approve or decline; the student is notified. The student can cancel a pending request, and can ask again 7 days after a decline.
-- **Invitations:** owners and admins invite a discoverable student by name (from the team's Members tab, Discover, or the AI "Teammate ideas" tool). The student sees it in **My Teams** and in notifications and can accept or decline. A shareable invitation link works once and expires after 7 days; only the owner can create admin invitations.
-- **Ownership:** a team always has exactly one owner. Transfer ownership to leave; if you are the only member, leaving deletes the team.
-- These rules are enforced in the database (`0008_team_workflow.sql`), not just hidden in the screens.
-
-## Commands
-
-```sh
-bun run dev       # Start the development server (port 3000)
-bun run build     # Production build
-bun run lint      # ESLint
-bun run format    # Prettier (writes files)
-bun test          # All tests in tests/ (requires Bun): business rules and component tests
-```
-
-## Project layout
+## 3. Directory map
 
 ```text
 TeamUp/
-├── src/
-│   ├── routes/            File-based routes: pages, protected screens, /api/ai/* endpoints
-│   ├── components/        Product UI (app/), AI chat primitives (ai-elements/), UI primitives (ui/)
-│   ├── lib/               Server functions, AI gateway/context, ranking rules, auth, utilities
-│   ├── integrations/      Supabase clients, auth middleware and generated types
-│   ├── hooks/, assets/    Shared hooks and images
-│   ├── router.tsx         Router setup
-│   ├── start.ts           Server-function middleware
-│   ├── server.ts          Server entry with SSR error handling
-│   └── styles.css         Tailwind theme and design tokens
-├── drizzle/migrations/    SQL schema, RLS, storage and RPC migrations
-├── supabase/              Supabase config and seed.sql
-├── tests/                 Business-rule tests, test cases and results
-├── docs/                  Report diagrams
-└── .env.example           Environment template
+├── README.md                    This file
+├── src/                         Application source code
+│   ├── routes/                  Pages (file-based), /api/ai/* endpoints, protected screens
+│   ├── components/              Product UI (app/), AI chat pieces (ai-elements/), UI primitives (ui/)
+│   ├── lib/                     Rules and server functions: ranking, task board, progress, notifications, AI gateway, auth
+│   ├── integrations/supabase/   Supabase clients, JWT auth middleware, generated types
+│   └── styles.css, router.tsx   Theme and router setup
+├── drizzle/migrations/          SQL schema, security policies and functions (0000-0013), run in order
+├── supabase/                    Supabase config and seed.sql (sample data)
+├── tests/                       Unit and screen tests, grouped by area; test_cases/, test_results/ (test cases and earlier results)
+├── Final_Testing/               Final test effort: system, regression, database-security and load tests, plan, traceability, report
+│   ├── README.md                How to run and what each suite covers
+│   ├── TEST_PLAN.md             Test levels, exit criteria, defects found and fixed
+│   ├── TRACEABILITY.md          Requirement -> test mapping
+│   └── reports/                 TEST_REPORT.md (latest run) and logs/ (full output per suite)
+├── Tests_Requirements/          Requirement, system, regression and load test cases; JMeter plan; Playwright spec
+├── docs/diagrams/               Design evidence: architecture, use-case/user flow, screen map, state diagrams (Mermaid)
+├── public/                      Icons and static files
+└── .env.example                 Environment template (placeholders only)
 ```
 
-The project keeps the standard TanStack Start full-stack layout. Do not split it into `frontend/` and `backend/` folders; that would break route discovery and imports.
+## 4. Prerequisites and installation
 
-### Routing
+| Need     | Version                                                                                                                                             |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OS       | Windows 10/11, macOS or Linux                                                                                                                       |
+| Runtime  | [Bun](https://bun.sh/) 1.4+ (recommended) **or** Node.js 20+ with npm                                                                               |
+| Accounts | A free [Supabase](https://supabase.com) project; an [NVIDIA NIM](https://build.nvidia.com/settings/api-keys) API key for the AI features (optional) |
 
-Routing is file-based: every `.tsx` file under `src/routes/` is a route (`index.tsx` → `/`, `teams.$teamId.tsx` → `/teams/:teamId`, `_authenticated/` → pages behind sign-in, `api/` → HTTP endpoints). `__root.tsx` is the only root layout. `src/routeTree.gen.ts` is generated by Vite; never edit it by hand.
+```sh
+git clone https://github.com/malaika-farooq/TeamUp_AdvSE-.git
+cd TeamUp_AdvSE-
+git checkout latest
+bun install --frozen-lockfile        # or: npm install
+```
 
-## Architecture rules
+## 5. Configuration
 
-These rules keep the app secure and predictable. Please keep to them when changing code.
+Copy the template and fill in your own values. **Never commit `.env`, and never put a secret in a `VITE_*` variable (those reach the browser).**
 
-- **AI calls:** model calls go through the NVIDIA NIM helpers in `src/lib/ai-gateway.ts` (plain `fetch`, key in `NVIDIA_API_KEY`). They are called only from server functions or `/api/ai/*` server routes, so the key never reaches the browser.
-- **AI context:** `src/lib/ai-context.ts` builds context with the caller's own Supabase client after a membership check, so Row Level Security stays in force. Records are wrapped as untrusted `<records>` data.
-- **Streaming endpoints:** `/api/ai/chat` and `/api/ai/write` verify the bearer token in the handler via `src/lib/route-auth.ts`, because server routes are not covered by server-function auth middleware.
-- **Chat threads:** stored in `ai_threads` and `ai_messages`, one route per thread (`/assistant/chat/$threadId`). The server reloads history from the database and dedupes user messages by `client_id` instead of trusting client-sent history.
-- **Private data:** availability and similar data reach the AI only as computed aggregates through security-definer RPCs (overlap minutes, workload counts, shared free windows), never as raw rows.
-- **Deterministic ranking:** teammate and study-partner suggestions are ranked in code first. Only positive facts are sent to the model under short keys, and the model writes the reasons only.
-- **Tests:** rules that must not regress live as pure modules in `src/lib/` with `bun:test` files in the root `tests/` folder, which is kept outside the app's tsconfig so test types don't leak into the build.
+```sh
+cp .env.example .env      # Windows PowerShell: Copy-Item .env.example .env
+```
 
-## Team responsibilities
+| Variable                                                    | Used by          | Example value                                                                                          |
+| ----------------------------------------------------------- | ---------------- | ------------------------------------------------------------------------------------------------------ |
+| `VITE_SUPABASE_URL`, `SUPABASE_URL`                         | Browser / server | `https://your-project-ref.supabase.co`                                                                 |
+| `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_PUBLISHABLE_KEY` | Browser / server | `sb_publishable_xxxxxxxx` (public key from Supabase → Project Settings → API)                          |
+| `VITE_SUPABASE_PROJECT_ID`, `SUPABASE_PROJECT_ID`           | Browser / server | `your-project-ref`                                                                                     |
+| `NVIDIA_API_KEY`                                            | Server only      | `nvapi-xxxxxxxx` (optional; without it AI features say "not configured" and the rest of the app works) |
+| `NVIDIA_MODEL`                                              | Server only      | optional, default `nvidia/nemotron-3.5-lightning-30b-a3b`                                              |
 
-| Person | Primary ownership |
-| --- | --- |
-| Malaika | Frontend, UI/UX, AI integration, architecture documentation, release coordination |
-| Aditi | Backend and server logic, authentication flow, authorization checks, business rules |
-| Krishan | Testing and quality assurance, accessibility, permission and security testing |
-| Amogh | Database schema, migrations, constraints, RLS and storage policies, data integrity |
+If you leave the placeholder URL, sign-in fails with **"Failed to fetch"**. Restart the dev server after changing `.env`.
 
-## Tests
+### Supabase settings
 
-`bun test` runs everything in `tests/`:
+- **Authentication → Providers → Email:** turn "Confirm email" off while testing (the built-in mailer is rate-limited).
+- **Authentication → Providers → Google (optional):** paste the Google OAuth Client ID **and Client Secret** and save, or "Continue with Google" returns `Unsupported provider: missing OAuth secret`. In Google Cloud add `https://<project-ref>.supabase.co/auth/v1/callback` as an authorized redirect URI.
+- **Authentication → URL Configuration:** add `http://localhost:3000/**` and your deployed address (for example `https://your-app.vercel.app/**`) under Redirect URLs.
 
-- **Business rules** (`tests/*.test.ts`): ranking, profile validation, team permissions, Markdown cleanup.
-- **Settings screens** (`tests/settings/*.test.tsx`): the Profile, Courses & skills, Availability, Appearance and Account sections, driven like a student would use them (typing, clicking, uploading a photo, switching tabs). They run in a simulated browser against an in-memory stand-in for Supabase (`tests/helpers/fake-supabase.ts`), so they need no network, database or login.
+### Database setup
 
-The setup that makes this work is in `bunfig.toml` and `tests/setup/`.
+Run the SQL files in `drizzle/migrations/` **in order** in the Supabase SQL editor (do not re-run earlier ones after a "type already exists" message; that just means they were applied):
 
-## Troubleshooting
+| File                                   | Adds                                                                                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `0000`-`0004`                          | Core schema and security policies, storage policies, AI chat threads, AI context helpers, teammate profile visibility         |
+| `0005`, `0006`                         | Study partners, partner requests, study sessions, time-window matching                                                        |
+| `0007_profile_completion.sql`          | Storage buckets (`avatars`, `team-files`), de-duplication, all-or-nothing save functions for courses, skills and availability |
+| `0008_team_workflow.sql`               | Roles, invitations and join requests through checked functions                                                                |
+| `0009_member_permissions.sql`          | Owner / admin / member permission rules for team content                                                                      |
+| `0010_team_availability.sql`           | Teammates read each other's free time (nothing else); once-a-day reminder to people with none                                 |
+| `0011_task_board.sql`                  | Three-column board, finish times kept by the database, assignees must be team members                                         |
+| `0012_resources_and_notifications.sql` | Note edit versions, web-address-only links, deadline reminders, notifications can't be rewritten                              |
+| `0013_lock_down_functions.sql`         | Signed-out visitors can run no elevated function except the invitation lookup                                                 |
 
-- **Missing Supabase environment variables:** confirm `.env` sits next to `package.json`, then restart the dev server.
-- **"Failed to fetch" when signing in:** the browser can't reach Supabase. Check `VITE_SUPABASE_URL` and `SUPABASE_URL` in `.env` are the real project URL (not `your-project-ref`), that the project isn't paused in the Supabase dashboard, and that your network or an ad blocker isn't blocking `*.supabase.co`.
-- **Sign-up or sign-in fails:** check email confirmation and redirect settings above, and that migration 0000 has been run.
-- **A team's data is missing:** sign in as a member of that team; Row Level Security hides private records from everyone else.
+Screens tell you which migration is missing if one is ("isn't set up in the database yet").
+
+### Sample data
+
+1. Run the app (below), **sign up** with your own email, and sign in once.
+2. Open `supabase/seed.sql`, set `my_email` to that email, and run it in the SQL editor. It creates sample students (`@teamup.test`), courses, skills, availability, teams, tasks, sessions, partner requests and notifications around your account. Example sample login after seeding: `zara@teamup.test` / `Password123!`.
+3. Or, inside the app, open **Settings → Account → Create sample workspace** for a quick team with tasks and notes.
+
+## 6. Launch
+
+```sh
+bun run dev        # or: npm run dev     -> http://localhost:3000
+bun run build      # production build
+```
+
+### Deployment
+
+The site is deployed on **Vercel** (Nitro `vercel` preset). Set the same environment variables in Vercel → Settings → Environment Variables (all of `VITE_SUPABASE_*`, `SUPABASE_*` and `NVIDIA_API_KEY`) for the **same Supabase project** you configured, then redeploy (the `VITE_` values are baked in at build time).
+
+## 7. Authentication (JWT)
+
+TeamUp uses **JWT-based authentication** through Supabase Auth:
+
+1. Signing in (email/password or Google) returns a signed **JWT access token** (plus a refresh token), kept by the Supabase client in the browser.
+2. Every call to the database sends that token; PostgreSQL **Row Level Security** reads the user id from it (`auth.uid()`), so a student can only reach their own teams' data.
+3. Every server call carries it as `Authorization: Bearer <token>`. Server functions (`src/integrations/supabase/auth-middleware.ts`) and the streaming AI endpoints (`src/lib/route-auth.ts`) reject a missing, non-Bearer, malformed, forged, expired or subject-less token before doing anything. Protected pages redirect signed-out visitors to the sign-in page.
+4. Tests: `tests/auth/jwt-auth.test.ts` (token checks), `tests/auth/auth-flows.test.tsx` (sign-in flows), `Final_Testing/system/access-control.test.tsx` (route guard), `Final_Testing/database/security.test.ts` (row-level security).
+
+The tokens are issued and signed by Supabase; the app does not mint its own.
+
+## 8. Demonstrating the core features (including the AI feature)
+
+Sign in (or use a seeded account), then:
+
+1. **Profile (Settings):** add a photo, courses, skills and weekly availability; save. The photo appears in the top bar at once.
+2. **Teams:** _My Teams → Create team_ (public), then invite a seeded student; as that student accept it, or _Discover → Request to join_ and approve it as owner.
+3. **Task board (Tasks):** _New task_, assign it, set a due date; move it with the status menu or by dragging. The assignee gets a notification.
+4. **Meeting times (team page → Meeting times):** _Mark my free time_, see the free-time map and the ranked best times, press _Schedule meeting_.
+5. **Notes and links (Resources):** share a note and a link; teammates are notified. Try a `javascript:` link: it is refused.
+6. **Notifications (bell → View all):** open one to jump to the page; deadline reminders appear for tasks due within 24 hours.
+7. **Progress and Activity (team page):** see tasks by status, upcoming deadlines, per-member contributions, and filter the history.
+8. **AI Teammate Matching (sidebar):** _Study partners_ → add a wanted skill (for example `SQL`), tick a time such as _Mon Evening_, tick _Only students who aren't overloaded_, press **Find study partners**. Each match shows why (shared courses, skills, free hours) and the student's workload level. _Send request_; as the other student accept it under _Study Partners_; then _Group sessions_ → pick the partner → **Suggest session times** → **Create & invite**.
+9. **Additional AI features** (same page, needs a team): _Plan tasks_, _Break down a task_, _Progress summary_, _Study guide_, _Practice quiz_, _Teammate ideas_, and the chat box. Everything the AI writes is a draft; nothing is saved until you choose to.
+
+## 9. Automated tests
+
+```sh
+bun test                 # everything, quickly (about 3 minutes)
+bun run test:final       # every suite, and writes Final_Testing/reports/TEST_REPORT.md
+npx tsc --noEmit         # type check
+bun run lint             # lint
+```
+
+| Where                       | What                                                                                                                                     |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `tests/`                    | Unit and screen tests per area: settings, auth (including JWT checks), AI, meeting times, task board, resources, notifications, progress |
+| `Final_Testing/system/`     | Whole workflows with two students: assign -> notify -> finish -> dashboard; AI matching to a booked session; access control              |
+| `Final_Testing/regression/` | One test per bug found during testing; Markdown can't run code                                                                           |
+| `Final_Testing/database/`   | Row-level security and workflow tests on every migration                                                                                 |
+| `Final_Testing/load/`       | Speed with thousands of records                                                                                                          |
+| `Tests_Requirements/`       | Requirement/system/regression/load test cases, JMeter plan, Playwright spec                                                              |
+
+- **Test cases:** `tests/test_cases/`, `Tests_Requirements/`, and the mapping in `Final_Testing/TRACEABILITY.md`.
+- **Results and logs:** `Final_Testing/reports/TEST_REPORT.md` (latest run) and `Final_Testing/reports/logs/` (full output of each suite); earlier results are in `tests/test_results/`.
+- **Database tests** apply every migration to an in-memory Postgres (PGlite). They need the dev tool: `npm i -D @electric-sql/pglite` (or set `PGLITE_PATH`). Without it they are **skipped, not passed**, and the report shows the skip.
+
+### Test limitations
+
+- The automated tests use a faithful stand-in for Supabase and a replacement for the AI, so they never call the live NVIDIA service or your live Supabase project. The real AI answer quality must be judged by hand (section 8).
+- A real browser is not used by `bun test`. The Playwright spec and JMeter plan in `Tests_Requirements/` need their own tools (Playwright, JMeter) and a signed-in session (`save-login.cjs` saves one).
+- Dragging task cards can't be simulated in the test browser; the status menu uses the same code and is tested.
+
+## 10. Known limitations, external services and troubleshooting
+
+### Known limitations
+
+- AI features need an NVIDIA API key and depend on that service being reachable; answers vary and may be wrong, which is why they are always drafts.
+- Free time is stored as a weekly pattern, not for specific dates, so a one-off conflict (an exam week) isn't modelled.
+- Deadline reminders are created when the app is opened and every 10 minutes while it is open, not by a background job; nobody is reminded while the app is closed.
+- No email or push notifications; notifications are in-app only.
+- Recurring sessions don't get "starting soon" reminders.
+
+### External services and access
+
+- **Supabase** (database, auth, storage): required; the SQL migrations need access to the project's SQL editor.
+- **NVIDIA NIM** (AI): optional; without a key everything except the AI features works.
+- **Google OAuth** (optional sign-in) and **Vercel** (deployment).
+
+### Troubleshooting
+
+- **"Failed to fetch" when signing in:** `.env` still has the placeholder URL, the Supabase project is paused, or a blocker is stopping `*.supabase.co`. Fix `.env` and restart.
+- **Google says `Unsupported provider: missing OAuth secret`:** the Google provider in Supabase has no Client Secret, or the deployed site points at a different Supabase project than the one you configured.
+- **A screen says something "isn't set up":** run the migration it names (section 5).
+- **Missing Supabase environment variables:** `.env` must sit next to `package.json`; restart the dev server.
+- **A team's data is missing:** sign in as a member; row-level security hides private data from everyone else.
 - **Route "not found" after adding a file:** restart the dev server so the route tree regenerates.
-- **Dependency or native-package errors:** delete `node_modules` and reinstall.
+- **Vercel build fails:** make sure `.vercel/` is not committed (it is in `.gitignore`) and that all environment variables are set.
+
+## Appendix: how teams, invitations and requests work
+
+| What                                                    | Owner |                   Admin                    |          Member          |
+| ------------------------------------------------------- | :---: | :----------------------------------------: | :----------------------: |
+| See tasks, sessions, files and activity                 |  Yes  |                    Yes                     |           Yes            |
+| Create tasks, sessions and notes, upload files, comment |  Yes  |                    Yes                     |           Yes            |
+| Edit a task                                             |  Any  |                    Any                     | Own, or assigned to them |
+| Delete a task                                           |  Any  |                    Any                     |           Own            |
+| Edit or delete a session, note or file                  |  Any  |                    Any                     |           Own            |
+| Delete a comment                                        |  Any  |                    Any                     |           Own            |
+| Invite people, answer join requests, remove members     |  Yes  | Yes (admins can only remove plain members) |            No            |
+| Edit team details                                       |  Yes  |                    Yes                     |            No            |
+| Change admin roles, transfer ownership                  |  Yes  |                     No                     |            No            |
+| Make the team public or private, delete the team        |  Yes  |                     No                     |            No            |
+
+- **Join requests:** students ask to join a _public_ team from Discover with an optional message. Owners and admins are notified and approve or decline; the student can cancel, and can ask again 7 days after a decline.
+- **Invitations:** owners and admins invite a discoverable student by name, or share a link that works once and expires after 7 days; only the owner can create admin invitations.
+- **Ownership:** a team always has exactly one owner. Transfer ownership to leave; if you are the only member, leaving deletes the team.
+- These rules are enforced in the database (`0008` and `0009`), not just hidden in the screens.
+
+## Appendix: architecture rules
+
+- **AI calls** go through `src/lib/ai-gateway.ts` and run only on the server, so the key never reaches the browser.
+- **AI context** is built with the caller's own Supabase client after a membership check, so row-level security stays in force. Records are wrapped as untrusted data.
+- **Streaming endpoints** (`/api/ai/chat`, `/api/ai/write`) verify the bearer token themselves via `src/lib/route-auth.ts`.
+- **Private data** (availability and similar) reaches the AI only as computed aggregates, never as raw rows.
+- **Ranking is deterministic:** teammate and study-partner suggestions are ranked in code; the model only writes the reasons.
+- **Tests** for rules live as pure modules in `src/lib/` with `bun:test` files in `tests/`.
+- Keep the standard TanStack Start layout (no `frontend/` / `backend/` split). `src/routeTree.gen.ts` is generated; never edit it by hand.

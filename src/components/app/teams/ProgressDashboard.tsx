@@ -1,6 +1,13 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, CalendarClock, CheckCircle2, ListChecks, Trophy, UserX } from "lucide-react";
+import {
+  AlertTriangle,
+  CalendarClock,
+  CheckCircle2,
+  ListChecks,
+  Trophy,
+  UserX,
+} from "lucide-react";
 import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import { ErrorState } from "@/components/app/states";
 import { Badge } from "@/components/ui/badge";
@@ -80,7 +87,8 @@ export function ProgressDashboard({
   );
   const nameOf = (id: string | null) =>
     id ? (people.find((p) => p.id === id)?.name ?? "Former member") : "Unassigned";
-  const avatarOf = (id: string) => members.find((m) => m.user_id === id)?.profile?.avatar_url ?? null;
+  const avatarOf = (id: string) =>
+    members.find((m) => m.user_id === id)?.profile?.avatar_url ?? null;
 
   const now = new Date();
   const stats = overviewStats(tasks, now);
@@ -114,10 +122,25 @@ export function ProgressDashboard({
   return (
     <div className="space-y-6">
       <section aria-label="Summary" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="Completed" value={`${stats.completionPercent}%`} icon={CheckCircle2} tone="text-teal" />
+        <Stat
+          label="Completed"
+          value={`${stats.completionPercent}%`}
+          icon={CheckCircle2}
+          tone="text-teal"
+        />
         <Stat label="Open tasks" value={stats.open} icon={ListChecks} />
-        <Stat label="Overdue" value={stats.overdue} icon={AlertTriangle} tone={stats.overdue ? "text-destructive" : ""} />
-        <Stat label="Due this week" value={stats.dueThisWeek} icon={CalendarClock} tone="text-blue" />
+        <Stat
+          label="Overdue"
+          value={stats.overdue}
+          icon={AlertTriangle}
+          tone={stats.overdue ? "text-destructive" : ""}
+        />
+        <Stat
+          label="Due this week"
+          value={stats.dueThisWeek}
+          icon={CalendarClock}
+          tone="text-blue"
+        />
         <Stat label="Unassigned" value={stats.unassigned} icon={UserX} />
       </section>
 
@@ -130,20 +153,30 @@ export function ProgressDashboard({
             {stats.done} of {stats.total} done
           </span>
         </div>
-        <Progress value={stats.completionPercent} className="h-2.5" aria-label="Overall completion" />
+        <Progress
+          value={stats.completionPercent}
+          className="h-2.5"
+          aria-label="Overall completion"
+        />
         {stats.total === 0 ? (
           <p className="text-sm text-muted-foreground">No tasks yet. Add one on the Task Board.</p>
         ) : (
           <ul className="space-y-2">
             {byStatus.map((s) => (
-              <li key={s.key} className="grid grid-cols-[6.5rem_1fr_4.5rem] items-center gap-3 text-sm">
+              <li
+                key={s.key}
+                className="grid grid-cols-[6.5rem_1fr_4.5rem] items-center gap-3 text-sm"
+              >
                 <span>{s.label}</span>
                 <div
                   role="img"
                   aria-label={`${s.label}: ${s.count} of ${stats.total} tasks (${s.percent}%)`}
                   className="h-3 overflow-hidden rounded-full bg-muted"
                 >
-                  <div className={cn("h-full rounded-full", BAR[s.key])} style={{ width: `${s.percent}%` }} />
+                  <div
+                    className={cn("h-full rounded-full", BAR[s.key])}
+                    style={{ width: `${s.percent}%` }}
+                  />
                 </div>
                 <span className="text-right tabular-nums text-muted-foreground">
                   {s.count} · {s.percent}%
@@ -216,20 +249,42 @@ export function ProgressDashboard({
               <caption className="sr-only">What each member has contributed</caption>
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  <th scope="col" className="py-2 pr-3 font-medium">Member</th>
-                  <th scope="col" className="px-2 text-right font-medium">Assigned</th>
-                  <th scope="col" className="px-2 text-right font-medium">Done</th>
-                  <th scope="col" className="px-2 text-right font-medium">Open</th>
-                  <th scope="col" className="px-2 text-right font-medium">Overdue</th>
-                  <th scope="col" className="px-2 text-right font-medium">Comments</th>
-                  <th scope="col" className="px-2 text-right font-medium">Shared</th>
-                  <th scope="col" className="px-2 font-medium">Share of finished work</th>
-                  <th scope="col" className="pl-2 text-right font-medium">Last active</th>
+                  <th scope="col" className="py-2 pr-3 font-medium">
+                    Member
+                  </th>
+                  <th scope="col" className="px-2 text-right font-medium">
+                    Assigned
+                  </th>
+                  <th scope="col" className="px-2 text-right font-medium">
+                    Done
+                  </th>
+                  <th scope="col" className="px-2 text-right font-medium">
+                    Open
+                  </th>
+                  <th scope="col" className="px-2 text-right font-medium">
+                    Overdue
+                  </th>
+                  <th scope="col" className="px-2 text-right font-medium">
+                    Comments
+                  </th>
+                  <th scope="col" className="px-2 text-right font-medium">
+                    Shared
+                  </th>
+                  <th scope="col" className="px-2 font-medium">
+                    Share of finished work
+                  </th>
+                  <th scope="col" className="pl-2 text-right font-medium">
+                    Last active
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {contributions.map((c) => (
-                  <tr key={c.id} className="border-b border-border/60 last:border-0" data-member={c.id}>
+                  <tr
+                    key={c.id}
+                    className="border-b border-border/60 last:border-0"
+                    data-member={c.id}
+                  >
                     <th scope="row" className="py-2 pr-3 text-left font-medium">
                       <span className="inline-flex items-center gap-2">
                         <UserAvatar name={c.name} path={avatarOf(c.id)} className="size-6" />
@@ -239,7 +294,12 @@ export function ProgressDashboard({
                     <td className="px-2 text-right tabular-nums">{c.assigned}</td>
                     <td className="px-2 text-right tabular-nums">{c.done}</td>
                     <td className="px-2 text-right tabular-nums">{c.open}</td>
-                    <td className={cn("px-2 text-right tabular-nums", c.overdue > 0 && "font-semibold text-destructive")}>
+                    <td
+                      className={cn(
+                        "px-2 text-right tabular-nums",
+                        c.overdue > 0 && "font-semibold text-destructive",
+                      )}
+                    >
                       {c.overdue}
                     </td>
                     <td className="px-2 text-right tabular-nums">{c.comments}</td>
@@ -251,9 +311,14 @@ export function ProgressDashboard({
                           aria-label={`${c.name} finished ${c.sharePercent}% of the team's completed tasks`}
                           className="h-2 w-20 overflow-hidden rounded-full bg-muted"
                         >
-                          <div className="h-full rounded-full bg-teal" style={{ width: `${c.sharePercent}%` }} />
+                          <div
+                            className="h-full rounded-full bg-teal"
+                            style={{ width: `${c.sharePercent}%` }}
+                          />
                         </div>
-                        <span className="tabular-nums text-muted-foreground">{c.sharePercent}%</span>
+                        <span className="tabular-nums text-muted-foreground">
+                          {c.sharePercent}%
+                        </span>
                       </div>
                     </td>
                     <td className="pl-2 text-right text-muted-foreground">
@@ -266,8 +331,8 @@ export function ProgressDashboard({
           </div>
         )}
         <p className="text-xs text-muted-foreground">
-          Assigned, done, open and overdue count tasks assigned to the person. Shared counts notes, links and
-          files.
+          Assigned, done, open and overdue count tasks assigned to the person. Shared counts notes,
+          links and files.
         </p>
       </section>
     </div>

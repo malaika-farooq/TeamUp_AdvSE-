@@ -26,12 +26,16 @@ describe("Markdown can't run code", () => {
     expect((window as unknown as { __pwned?: number }).__pwned).toBeUndefined();
   });
   test("inline event handlers are not inserted", async () => {
-    const c = await show('<img src=x onerror="window.__pwned = 2"> <a href="#" onclick="window.__pwned = 3">x</a>');
+    const c = await show(
+      '<img src=x onerror="window.__pwned = 2"> <a href="#" onclick="window.__pwned = 3">x</a>',
+    );
     expect(c.querySelector("[onerror]")).toBeNull();
     expect(c.querySelector("[onclick]")).toBeNull();
   });
   test("iframes and forms are not inserted", async () => {
-    const c = await show('<iframe src="https://evil.example"></iframe><form action="https://evil.example"><input></form>');
+    const c = await show(
+      '<iframe src="https://evil.example"></iframe><form action="https://evil.example"><input></form>',
+    );
     expect(c.querySelector("iframe")).toBeNull();
     expect(c.querySelector("form")).toBeNull();
   });

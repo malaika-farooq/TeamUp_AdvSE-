@@ -35,8 +35,18 @@ const task = (over: Partial<Task> = {}): Task =>
   }) as Task;
 
 const member = (id: string, name: string, role = "member"): MemberWithProfile =>
-  ({ team_id: "t1", user_id: id, role, joined_at: "2026-01-01", profile: { id, display_name: name, avatar_url: null } }) as unknown as MemberWithProfile;
-const MEMBERS = [member("user-1", "Maya Chen", "owner"), member("u2", "Ben Ortiz"), member("u3", "Cy Park")];
+  ({
+    team_id: "t1",
+    user_id: id,
+    role,
+    joined_at: "2026-01-01",
+    profile: { id, display_name: name, avatar_url: null },
+  }) as unknown as MemberWithProfile;
+const MEMBERS = [
+  member("user-1", "Maya Chen", "owner"),
+  member("u2", "Ben Ortiz"),
+  member("u3", "Cy Park"),
+];
 
 const standard = () => [
   task({ title: "Draft outline", status: "done", assignee_id: "user-1" }),
@@ -47,7 +57,10 @@ const standard = () => [
   task({ title: "Practise talk", status: "in_review", assignee_id: "user-1" }),
 ];
 
-function show(tasks: Task[] = standard(), opts: { resources?: Resource[]; sessions?: StudySession[] } = {}) {
+function show(
+  tasks: Task[] = standard(),
+  opts: { resources?: Resource[]; sessions?: StudySession[] } = {},
+) {
   resetHarness();
   h.fake.seed("task_comments", [
     { task_id: tasks[0]?.id, author_id: "u2" },
@@ -55,15 +68,31 @@ function show(tasks: Task[] = standard(), opts: { resources?: Resource[]; sessio
     { task_id: tasks[0]?.id, author_id: "u3" },
   ] as never);
   h.fake.seed("activity_logs", [
-    { id: "a1", team_id: "t1", actor_id: "user-1", action: "task_updated", summary: "moved a task", created_at: ago(2 * 3600_000) },
-    { id: "a2", team_id: "t1", actor_id: "u2", action: "task_created", summary: "created a task", created_at: ago(26 * 3600_000) },
+    {
+      id: "a1",
+      team_id: "t1",
+      actor_id: "user-1",
+      action: "task_updated",
+      summary: "moved a task",
+      created_at: ago(2 * 3600_000),
+    },
+    {
+      id: "a2",
+      team_id: "t1",
+      actor_id: "u2",
+      action: "task_created",
+      summary: "created a task",
+      created_at: ago(26 * 3600_000),
+    },
   ] as never);
   return renderWithClient(
     <ProgressDashboard
       teamId="t1"
       tasks={tasks}
       members={MEMBERS}
-      resources={opts.resources ?? ([{ created_by: "u3" }, { created_by: "u3" }] as unknown as Resource[])}
+      resources={
+        opts.resources ?? ([{ created_by: "u3" }, { created_by: "u3" }] as unknown as Resource[])
+      }
       sessions={opts.sessions ?? ([{ created_by: "user-1" }] as unknown as StudySession[])}
     />,
   );
@@ -133,7 +162,10 @@ describe("Progress dashboard: deadlines", () => {
   });
 
   test("finished tasks never appear as deadlines", async () => {
-    show([task({ title: "Old", status: "done", due_date: rel(-3) }), task({ title: "Future done", status: "done", due_date: rel(4) })]);
+    show([
+      task({ title: "Old", status: "done", due_date: rel(-3) }),
+      task({ title: "Future done", status: "done", due_date: rel(4) }),
+    ]);
     await screen.findByText(/No open tasks have a due date/);
     expect(screen.queryByText("Old")).toBeNull();
   });
@@ -171,8 +203,14 @@ describe("Progress dashboard: per-member contributions", () => {
 
   test("shows each member's share of the finished work", async () => {
     show();
-    expect(await screen.findByRole("img", { name: "Maya Chen finished 100% of the team's completed tasks" })).toBeTruthy();
-    expect(screen.getByRole("img", { name: "Ben Ortiz finished 0% of the team's completed tasks" })).toBeTruthy();
+    expect(
+      await screen.findByRole("img", {
+        name: "Maya Chen finished 100% of the team's completed tasks",
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole("img", { name: "Ben Ortiz finished 0% of the team's completed tasks" }),
+    ).toBeTruthy();
   });
 
   test("members are ordered by tasks finished", async () => {
@@ -181,7 +219,9 @@ describe("Progress dashboard: per-member contributions", () => {
     const names = within(screen.getByRole("table"))
       .getAllByRole("rowheader")
       .map((r) => r.textContent);
-    expect(names.map((x) => ["Maya Chen", "Ben Ortiz", "Cy Park"].findIndex((nm) => x!.endsWith(nm)))).toEqual([0, 1, 2]);
+    expect(
+      names.map((x) => ["Maya Chen", "Ben Ortiz", "Cy Park"].findIndex((nm) => x!.endsWith(nm))),
+    ).toEqual([0, 1, 2]);
   });
 
   test("names the member who finished the most", async () => {
@@ -204,7 +244,15 @@ describe("Progress dashboard: per-member contributions", () => {
   test("a load error is shown with a retry", async () => {
     resetHarness();
     h.fake.failTable("activity_logs", "select", { message: "Network down" });
-    renderWithClient(<ProgressDashboard teamId="t1" tasks={standard()} members={MEMBERS} resources={[]} sessions={[]} />);
+    renderWithClient(
+      <ProgressDashboard
+        teamId="t1"
+        tasks={standard()}
+        members={MEMBERS}
+        resources={[]}
+        sessions={[]}
+      />,
+    );
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toContain("Network down");
     await waitFor(() => expect(screen.getByRole("button", { name: /try again/i })).toBeTruthy());
@@ -242,17 +290,30 @@ describe("Activity history", () => {
 
   test("events by someone who left still show", async () => {
     history(logs(1, { actor_id: "gone" }));
-    expect((await screen.findByText(/A former member/)).closest("li")!.textContent).toContain("did thing 0");
+    expect((await screen.findByText(/A former member/)).closest("li")!.textContent).toContain(
+      "did thing 0",
+    );
   });
 
   test("groups by day", async () => {
     history([
       ...logs(1),
-      { id: "old", team_id: "t1", actor_id: "u2", action: "task_created", summary: "created long ago", created_at: ago(20 * 86_400_000) },
+      {
+        id: "old",
+        team_id: "t1",
+        actor_id: "u2",
+        action: "task_created",
+        summary: "created long ago",
+        created_at: ago(20 * 86_400_000),
+      },
     ]);
     await screen.findByText(/created long ago/);
-    expect(within(screen.getByRole("region", { name: "Today" })).getByText(/did thing 0/)).toBeTruthy();
-    expect(within(screen.getByRole("region", { name: "Earlier" })).getByText(/created long ago/)).toBeTruthy();
+    expect(
+      within(screen.getByRole("region", { name: "Today" })).getByText(/did thing 0/),
+    ).toBeTruthy();
+    expect(
+      within(screen.getByRole("region", { name: "Earlier" })).getByText(/created long ago/),
+    ).toBeTruthy();
   });
 
   test("an empty team's history says so", async () => {
@@ -272,7 +333,14 @@ describe("Activity history", () => {
   test("filter by type", async () => {
     const { user } = history([
       ...logs(2),
-      { id: "r", team_id: "t1", actor_id: "u2", action: "resource_added", summary: 'added "Exam notes"', created_at: ago(5000) },
+      {
+        id: "r",
+        team_id: "t1",
+        actor_id: "u2",
+        action: "resource_added",
+        summary: 'added "Exam notes"',
+        created_at: ago(5000),
+      },
     ]);
     await screen.findByText(/Exam notes/);
     await user.selectOptions(screen.getByLabelText("Type"), "resources");
@@ -284,7 +352,14 @@ describe("Activity history", () => {
   test("filter by period", async () => {
     const { user } = history([
       ...logs(1),
-      { id: "old", team_id: "t1", actor_id: "u2", action: "task_created", summary: "ancient", created_at: ago(40 * 86_400_000) },
+      {
+        id: "old",
+        team_id: "t1",
+        actor_id: "u2",
+        action: "task_created",
+        summary: "ancient",
+        created_at: ago(40 * 86_400_000),
+      },
     ]);
     await screen.findByText(/ancient/);
     await user.selectOptions(screen.getByLabelText("When"), "30");
@@ -334,7 +409,17 @@ describe("Activity history", () => {
   });
 
   test("only this team's history is asked for", async () => {
-    history([...logs(1), { id: "x", team_id: "other", actor_id: "u2", action: "task_created", summary: "elsewhere", created_at: ago(1000) }]);
+    history([
+      ...logs(1),
+      {
+        id: "x",
+        team_id: "other",
+        actor_id: "u2",
+        action: "task_created",
+        summary: "elsewhere",
+        created_at: ago(1000),
+      },
+    ]);
     await screen.findByText(/did thing 0/);
     expect(screen.queryByText(/elsewhere/)).toBeNull();
   });

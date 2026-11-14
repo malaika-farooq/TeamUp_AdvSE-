@@ -13,7 +13,12 @@ export function statusBreakdown(tasks: Pick<TaskLike, "status">[]): StatusCount[
   const total = tasks.length;
   return BOARD_COLUMNS.map((c) => {
     const count = tasks.filter((t) => columnOf(t.status) === c.key).length;
-    return { key: c.key, label: c.label, count, percent: total ? Math.round((count / total) * 100) : 0 };
+    return {
+      key: c.key,
+      label: c.label,
+      count,
+      percent: total ? Math.round((count / total) * 100) : 0,
+    };
   });
 }
 
@@ -63,8 +68,14 @@ export function upcomingDeadlines<T extends Pick<TaskLike, "status" | "due_date"
   const dated = tasks.filter((t) => t.due_date && columnOf(t.status) !== "done");
   const time = (t: T) => new Date(t.due_date!).getTime();
   return {
-    overdue: dated.filter((t) => time(t) < now.getTime()).sort((a, b) => time(a) - time(b)).slice(0, limit),
-    upcoming: dated.filter((t) => time(t) >= now.getTime()).sort((a, b) => time(a) - time(b)).slice(0, limit),
+    overdue: dated
+      .filter((t) => time(t) < now.getTime())
+      .sort((a, b) => time(a) - time(b))
+      .slice(0, limit),
+    upcoming: dated
+      .filter((t) => time(t) >= now.getTime())
+      .sort((a, b) => time(a) - time(b))
+      .slice(0, limit),
   };
 }
 
@@ -104,7 +115,7 @@ export function memberContributions(input: {
   const teamDone = input.tasks.filter((t) => columnOf(t.status) === "done").length;
 
   // Group everything by person once, so the cost grows with the amount of data, not data x members.
-  const group = <T,>(items: T[], key: (x: T) => string) => {
+  const group = <T>(items: T[], key: (x: T) => string) => {
     const map = new Map<string, T[]>();
     for (const x of items) {
       const k = key(x);
@@ -216,7 +227,11 @@ export function actionsByPerson(
   people: Person[],
 ): { id: string; name: string; count: number }[] {
   return people
-    .map((p) => ({ id: p.id, name: p.name, count: items.filter((a) => a.actor_id === p.id).length }))
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      count: items.filter((a) => a.actor_id === p.id).length,
+    }))
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
 }
 

@@ -21,7 +21,16 @@ beforeEach(() => resetHarness());
 describe("System: pages that need a sign-in", () => {
   test("a signed-out visitor is sent to the sign-in page and brought back afterwards", async () => {
     h.fake.setSessionMode("signed-out");
-    for (const page of ["/dashboard", "/tasks", "/teams/abc", "/assistant", "/settings", "/notifications", "/resources", "/calendar"]) {
+    for (const page of [
+      "/dashboard",
+      "/tasks",
+      "/teams/abc",
+      "/assistant",
+      "/settings",
+      "/notifications",
+      "/resources",
+      "/calendar",
+    ]) {
       const r = await attempt(page);
       expect(r.redirect).toEqual({ to: "/auth", search: { mode: "signin", redirect: page } });
     }
@@ -45,7 +54,11 @@ describe("System: a team the student can't open", () => {
     const Page = (TeamRoute as unknown as { component: () => JSX.Element }).component;
     renderWithClient(<Page />);
     expect(await screen.findByText("Team not available")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Back to My Teams" }).getAttribute("href")).toBe("/teams");
-    expect(screen.getByRole("link", { name: "Find a team to join" }).getAttribute("href")).toBe("/discover");
+    expect(screen.getByRole("link", { name: "Back to My Teams" }).getAttribute("href")).toBe(
+      "/teams",
+    );
+    expect(screen.getByRole("link", { name: "Find a team to join" }).getAttribute("href")).toBe(
+      "/discover",
+    );
   });
 });

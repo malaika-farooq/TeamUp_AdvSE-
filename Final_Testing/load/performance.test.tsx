@@ -8,7 +8,12 @@ import { ProgressDashboard } from "../../src/components/app/teams/ProgressDashbo
 import { bestMeetingTimes, type MemberAvailability } from "../../src/lib/meeting-times";
 import { groupByDay } from "../../src/lib/notifications";
 import { rankPartners } from "../../src/lib/partner-ranking";
-import { memberContributions, overviewStats, statusBreakdown, upcomingDeadlines } from "../../src/lib/progress";
+import {
+  memberContributions,
+  overviewStats,
+  statusBreakdown,
+  upcomingDeadlines,
+} from "../../src/lib/progress";
 import { filterResources, parseTags } from "../../src/lib/resources";
 import { NO_FILTERS, filterTasks, sortColumnTasks, type TaskLike } from "../../src/lib/task-board";
 import { h, resetHarness } from "../../tests/helpers/harness";
@@ -52,7 +57,9 @@ describe("Load: the matching engines", () => {
       windowMinutes: (i % 9) * 30,
       workload: { openTasks: i % 15, dueSoon: i % 5, sessionsWeek: i % 4 },
     }));
-    const { value, ms } = timed(() => rankPartners(people, 5, { requireWindow: true, avoidHeavy: true }));
+    const { value, ms } = timed(() =>
+      rankPartners(people, 5, { requireWindow: true, avoidHeavy: true }),
+    );
     expect(value).toHaveLength(5);
     expect(value[0]!.score).toBeGreaterThanOrEqual(value[4]!.score);
     expect(ms).toBeLessThan(500);
@@ -62,7 +69,11 @@ describe("Load: the matching engines", () => {
     const members: MemberAvailability[] = Array.from({ length: 40 }, (_, m) => ({
       id: `m${m}`,
       name: `Member ${m}`,
-      ranges: Array.from({ length: 7 }, (_, d) => ({ weekday: d, start: (6 + (m % 6)) * 60, end: (16 + (m % 5)) * 60 })),
+      ranges: Array.from({ length: 7 }, (_, d) => ({
+        weekday: d,
+        start: (6 + (m % 6)) * 60,
+        end: (16 + (m % 5)) * 60,
+      })),
     }));
     const { value, ms } = timed(() => bestMeetingTimes(members, 60));
     expect(value.length).toBeGreaterThan(0);
@@ -74,7 +85,9 @@ describe("Load: the matching engines", () => {
 describe("Load: the task board's engines", () => {
   test("filtering and ordering 20,000 tasks", () => {
     const all = tasks(20000);
-    const { value, ms } = timed(() => filterTasks(all, { ...NO_FILTERS, search: "number 19", priority: "high" }, "u1"));
+    const { value, ms } = timed(() =>
+      filterTasks(all, { ...NO_FILTERS, search: "number 19", priority: "high" }, "u1"),
+    );
     expect(value.every((t) => t.priority === "high" && t.title.includes("number 19"))).toBe(true);
     expect(ms).toBeLessThan(800);
     const sorted = timed(() => sortColumnTasks(all.filter((t) => t.status === "todo")));
@@ -84,7 +97,10 @@ describe("Load: the task board's engines", () => {
 
   test("the progress figures for 20,000 tasks and 50 members", () => {
     const all = tasks(20000, 50);
-    const people = Array.from({ length: 50 }, (_, i) => ({ id: `u${i}`, name: `Member ${String(i).padStart(2, "0")}` }));
+    const people = Array.from({ length: 50 }, (_, i) => ({
+      id: `u${i}`,
+      name: `Member ${String(i).padStart(2, "0")}`,
+    }));
     const a = timed(() => overviewStats(all));
     expect(a.value.total).toBe(20000);
     expect(a.ms).toBeLessThan(500);
@@ -98,35 +114,54 @@ describe("Load: the task board's engines", () => {
         tasks: all,
         resources: Array.from({ length: 2000 }, (_, i) => ({ created_by: `u${i % 50}` })),
         comments: Array.from({ length: 5000 }, (_, i) => ({ author_id: `u${i % 50}` })),
-        activity: Array.from({ length: 5000 }, (_, i) => ({ actor_id: `u${i % 50}`, created_at: new Date(Date.now() - i * 3600e3).toISOString() })),
+        activity: Array.from({ length: 5000 }, (_, i) => ({
+          actor_id: `u${i % 50}`,
+          created_at: new Date(Date.now() - i * 3600e3).toISOString(),
+        })),
       }),
     );
     expect(d.value).toHaveLength(50);
     expect(d.ms).toBeLessThan(4000);
     // every task assigned to a member is counted once
-    expect(d.value.reduce((s, m) => s + m.assigned, 0)).toBe(all.filter((t) => t.assignee_id).length);
+    expect(d.value.reduce((s, m) => s + m.assigned, 0)).toBe(
+      all.filter((t) => t.assignee_id).length,
+    );
   });
 
   test("searching 10,000 shared notes and links", () => {
     const items = Array.from({ length: 10000 }, (_, i) => ({
-      id: `r${i}`, team_id: "t1", kind: ["note", "link", "file"][i % 3]!, title: `Resource ${i}`,
-      content: i % 2 ? "recursion and trees" : null, url: i % 3 === 1 ? `https://example.com/${i}` : null,
-      storage_path: null, file_size: null, tags: [`tag${i % 30}`], created_by: "u1", updated_at: "2026-11-01T00:00:00Z",
+      id: `r${i}`,
+      team_id: "t1",
+      kind: ["note", "link", "file"][i % 3]!,
+      title: `Resource ${i}`,
+      content: i % 2 ? "recursion and trees" : null,
+      url: i % 3 === 1 ? `https://example.com/${i}` : null,
+      storage_path: null,
+      file_size: null,
+      tags: [`tag${i % 30}`],
+      created_by: "u1",
+      updated_at: "2026-11-01T00:00:00Z",
     }));
-    const { value, ms } = timed(() => filterResources(items, { kind: "all", team: "all", tag: "tag7", search: "recursion" }));
+    const { value, ms } = timed(() =>
+      filterResources(items, { kind: "all", team: "all", tag: "tag7", search: "recursion" }),
+    );
     expect(value.length).toBeGreaterThan(0);
     expect(ms).toBeLessThan(500);
   });
 
   test("grouping 10,000 notifications by day", () => {
-    const items = Array.from({ length: 10000 }, (_, i) => ({ created_at: new Date(Date.now() - i * 1800e3).toISOString() }));
+    const items = Array.from({ length: 10000 }, (_, i) => ({
+      created_at: new Date(Date.now() - i * 1800e3).toISOString(),
+    }));
     const { value, ms } = timed(() => groupByDay(items));
     expect(value.reduce((s, g) => s + g.items.length, 0)).toBe(10000);
     expect(ms).toBeLessThan(500);
   });
 
   test("tags from a very long paste", () => {
-    const { value, ms } = timed(() => parseTags(Array.from({ length: 50000 }, (_, i) => `tag${i}`).join(",")));
+    const { value, ms } = timed(() =>
+      parseTags(Array.from({ length: 50000 }, (_, i) => `tag${i}`).join(",")),
+    );
     expect(value).toHaveLength(10);
     expect(ms).toBeLessThan(500);
   });
@@ -136,8 +171,15 @@ describe("Load: screens with a lot on them", () => {
   test("the progress dashboard draws 2,000 tasks and 30 members in a few seconds", async () => {
     resetHarness();
     const members = Array.from({ length: 30 }, (_, i) => ({
-      team_id: "t1", user_id: `u${i}`, role: "member", joined_at: "2026-01-01",
-      profile: { id: `u${i}`, display_name: `Member ${String(i).padStart(2, "0")}`, avatar_url: null },
+      team_id: "t1",
+      user_id: `u${i}`,
+      role: "member",
+      joined_at: "2026-01-01",
+      profile: {
+        id: `u${i}`,
+        display_name: `Member ${String(i).padStart(2, "0")}`,
+        avatar_url: null,
+      },
     }));
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const start = performance.now();

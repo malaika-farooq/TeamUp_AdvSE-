@@ -10,7 +10,10 @@ export type SessionForm = {
 };
 
 export type SessionCheck =
-  | { ok: true; clean: { title: string; startsAt: string; endsAt: string; recurrenceEnd: string | null } }
+  | {
+      ok: true;
+      clean: { title: string; startsAt: string; endsAt: string; recurrenceEnd: string | null };
+    }
   | { ok: false; errors: Partial<Record<"title" | "start" | "end" | "recurrenceEnd", string>> };
 
 export const MAX_SESSION_HOURS = 12;
@@ -33,10 +36,16 @@ export function validateSessionForm(f: SessionForm): SessionCheck {
   if (f.weekly && f.recurrenceEnd) {
     const r = new Date(f.recurrenceEnd);
     if (Number.isNaN(r.getTime())) errors.recurrenceEnd = "That date isn't valid.";
-    else if (start && r.getTime() < new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime())
+    else if (
+      start &&
+      r.getTime() < new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime()
+    )
       errors.recurrenceEnd = "Repeat until a date on or after the first session.";
     else recurrenceEnd = r.toISOString();
   }
   if (Object.keys(errors).length || !start || !end) return { ok: false, errors };
-  return { ok: true, clean: { title, startsAt: start.toISOString(), endsAt: end.toISOString(), recurrenceEnd } };
+  return {
+    ok: true,
+    clean: { title, startsAt: start.toISOString(), endsAt: end.toISOString(), recurrenceEnd },
+  };
 }

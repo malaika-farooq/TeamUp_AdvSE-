@@ -14,13 +14,15 @@ const suites: Suite[] = [
     id: "unit",
     name: "Unit and screen tests",
     paths: ["tests"],
-    covers: "Functionalities 1-6, AI Teammate Matching, Additional AI features, rules and every screen",
+    covers:
+      "Functionalities 1-6, AI Teammate Matching, Additional AI features, rules and every screen",
   },
   {
     id: "system",
     name: "System tests (whole workflows)",
     paths: ["Final_Testing/system"],
-    covers: "Assign -> notify -> finish -> dashboard; AI matching to booked session; access control",
+    covers:
+      "Assign -> notify -> finish -> dashboard; AI matching to booked session; access control",
   },
   {
     id: "regression",
@@ -42,7 +44,15 @@ const suites: Suite[] = [
   },
 ];
 
-type Result = { suite: Suite; pass: number; fail: number; skip: number; files: number; seconds: number; code: number };
+type Result = {
+  suite: Suite;
+  pass: number;
+  fail: number;
+  skip: number;
+  files: number;
+  seconds: number;
+  code: number;
+};
 
 async function run(suite: Suite): Promise<Result> {
   const started = performance.now();
@@ -52,10 +62,13 @@ async function run(suite: Suite): Promise<Result> {
     stderr: "pipe",
     env: process.env,
   });
-  const [out, err] = await Promise.all([new Response(proc.stdout).text(), new Response(proc.stderr).text()]);
+  const [out, err] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+  ]);
   const code = await proc.exited;
   const text = `${out}\n${err}`;
-  writeFileSync(join(reports, "logs", `${suite.id}.log`), text.replace(/\u001b\[[0-9;]*m/g, ""));
+  writeFileSync(join(reports, "logs", `${suite.id}.log`), text.replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g"), ""));
   const num = (re: RegExp) => Number(text.match(re)?.[1] ?? 0);
   return {
     suite,
@@ -73,14 +86,19 @@ for (const s of suites) {
   process.stdout.write(`Running ${s.name}... `);
   const r = await run(s);
   results.push(r);
-  console.log(`${r.pass} passed, ${r.fail} failed${r.skip ? `, ${r.skip} skipped` : ""} (${r.seconds}s)`);
+  console.log(
+    `${r.pass} passed, ${r.fail} failed${r.skip ? `, ${r.skip} skipped` : ""} (${r.seconds}s)`,
+  );
 }
 
-const total = results.reduce((a, r) => ({ pass: a.pass + r.pass, fail: a.fail + r.fail, skip: a.skip + r.skip }), {
-  pass: 0,
-  fail: 0,
-  skip: 0,
-});
+const total = results.reduce(
+  (a, r) => ({ pass: a.pass + r.pass, fail: a.fail + r.fail, skip: a.skip + r.skip }),
+  {
+    pass: 0,
+    fail: 0,
+    skip: 0,
+  },
+);
 const verdict = total.fail === 0 && results.every((r) => r.code === 0) ? "PASS" : "FAIL";
 const when = new Date().toISOString().replace("T", " ").slice(0, 16);
 const rows = results
@@ -110,5 +128,7 @@ ${results.map((r) => `- **${r.suite.name}:** ${r.suite.covers}`).join("\n")}
 Full output for each suite is in \`Final_Testing/reports/logs/\`. How requirements map to tests: \`Final_Testing/TRACEABILITY.md\`.
 `,
 );
-console.log(`\n${verdict}: ${total.pass} passed, ${total.fail} failed, ${total.skip} skipped. Report: Final_Testing/reports/TEST_REPORT.md`);
+console.log(
+  `\n${verdict}: ${total.pass} passed, ${total.fail} failed, ${total.skip} skipped. Report: Final_Testing/reports/TEST_REPORT.md`,
+);
 process.exit(verdict === "PASS" ? 0 : 1);

@@ -23,7 +23,9 @@ describe("Regression: a member was shown the owner's role", () => {
   });
 
   test("a student in no team has no teams (and signed-out has none either)", async () => {
-    h.fake.seed("team_members", [{ team_id: "t1", user_id: "someone-else", role: "owner", joined_at: "2026-01-01" }]);
+    h.fake.seed("team_members", [
+      { team_id: "t1", user_id: "someone-else", role: "owner", joined_at: "2026-01-01" },
+    ]);
     expect(await fetchMyTeams()).toEqual([]);
     h.fake.setSessionMode("signed-out");
     expect(await fetchMyTeams()).toEqual([]);
@@ -33,11 +35,26 @@ describe("Regression: a member was shown the owner's role", () => {
 describe("Regression: typing in a step also ticked or unticked its box", () => {
   // Bug: the checkbox and the text box shared one <label>, so clicking the text toggled the checkbox.
   test("editing a step's text leaves its checkbox alone", async () => {
-    h.fake.seed("team_members", [{ team_id: "t1", user_id: "user-1", role: "owner", joined_at: "2026-01-01" }]);
+    h.fake.seed("team_members", [
+      { team_id: "t1", user_id: "user-1", role: "owner", joined_at: "2026-01-01" },
+    ]);
     h.fake.seed("teams", [{ id: "t1", name: "Crew", created_at: "2026-01-01" }]);
     h.fake.seed("tasks", [
-      { id: "task-1", team_id: "t1", title: "Build it", description: null, status: "todo", priority: "medium", assignee_id: null,
-        created_by: "user-1", due_date: null, position: 1, completed_at: null, created_at: "2026-11-01T00:00:00Z", updated_at: "2026-11-01T00:00:00Z" },
+      {
+        id: "task-1",
+        team_id: "t1",
+        title: "Build it",
+        description: null,
+        status: "todo",
+        priority: "medium",
+        assignee_id: null,
+        created_by: "user-1",
+        due_date: null,
+        position: 1,
+        completed_at: null,
+        created_at: "2026-11-01T00:00:00Z",
+        updated_at: "2026-11-01T00:00:00Z",
+      },
     ] as never);
     h.ai.breakdown = mock(async () => ({ steps: ["First", "Second"], tip: "" }));
     const { user } = renderWithClient(<BreakdownTool teamId="t1" />);
