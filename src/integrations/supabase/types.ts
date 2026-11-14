@@ -182,6 +182,7 @@ export type Database = {
           email: string | null
           expires_at: string
           id: string
+          invitee_id: string | null
           role: Database["public"]["Enums"]["team_role"]
           status: Database["public"]["Enums"]["invitation_status"]
           team_id: string
@@ -195,6 +196,7 @@ export type Database = {
           email?: string | null
           expires_at?: string
           id?: string
+          invitee_id?: string | null
           role?: Database["public"]["Enums"]["team_role"]
           status?: Database["public"]["Enums"]["invitation_status"]
           team_id: string
@@ -208,6 +210,7 @@ export type Database = {
           email?: string | null
           expires_at?: string
           id?: string
+          invitee_id?: string | null
           role?: Database["public"]["Enums"]["team_role"]
           status?: Database["public"]["Enums"]["invitation_status"]
           team_id?: string
@@ -857,6 +860,84 @@ export type Database = {
           other_avatar: string | null
         }[]
       }
+      ensure_course: {
+        Args: { _code: string; _title: string }
+        Returns: string
+      }
+      create_invite_link: {
+        Args: { _team: string; _role?: Database["public"]["Enums"]["team_role"] }
+        Returns: string
+      }
+      invite_student: {
+        Args: { _team: string; _user: string; _role?: Database["public"]["Enums"]["team_role"] }
+        Returns: string
+      }
+      revoke_invitation: {
+        Args: { _id: string }
+        Returns: undefined
+      }
+      my_team_invitations: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          token: string
+          team_id: string
+          team_name: string
+          role: Database["public"]["Enums"]["team_role"]
+          inviter_name: string | null
+          inviter_avatar: string | null
+          created_at: string
+          expires_at: string
+        }[]
+      }
+      decline_invitation: {
+        Args: { _token: string }
+        Returns: undefined
+      }
+      request_to_join: {
+        Args: { _team: string; _message?: string | null }
+        Returns: string
+      }
+      cancel_join_request: {
+        Args: { _request: string }
+        Returns: undefined
+      }
+      team_join_requests: {
+        Args: { _team: string }
+        Returns: {
+          request_id: string
+          requester_id: string
+          name: string
+          avatar: string | null
+          university: string | null
+          major: string | null
+          bio: string | null
+          message: string | null
+          requested_at: string
+          skills: string[]
+          courses: string[]
+        }[]
+      }
+      team_request_counts: {
+        Args: Record<PropertyKey, never>
+        Returns: { team_id: string; pending: number }[]
+      }
+      set_member_role: {
+        Args: { _team: string; _user: string; _role: Database["public"]["Enums"]["team_role"] }
+        Returns: undefined
+      }
+      transfer_ownership: {
+        Args: { _team: string; _user: string }
+        Returns: undefined
+      }
+      remove_member: {
+        Args: { _team: string; _user: string }
+        Returns: undefined
+      }
+      leave_team: {
+        Args: { _team: string }
+        Returns: boolean
+      }
       set_my_courses: {
         Args: { _courses: Json }
         Returns: number
@@ -933,10 +1014,13 @@ export type Database = {
       invitation_preview: {
         Args: { _token: string }
         Returns: {
-          reason: string
-          team_id: string
-          team_name: string
+          team_id: string | null
+          team_name: string | null
+          role: Database["public"]["Enums"]["team_role"] | null
+          inviter_name: string | null
+          member_count: number
           valid: boolean
+          reason: string
         }[]
       }
       is_team_member: {

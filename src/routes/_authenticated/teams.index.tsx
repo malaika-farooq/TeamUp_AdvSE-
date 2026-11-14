@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Plus, Users } from "lucide-react";
+import { Check, Loader2, Plus, Users, X } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { CardSkeletons, EmptyState, ErrorState } from "@/components/app/states";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,17 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { ACCENTS, accentClasses, fetchMyTeams } from "@/lib/queries";
 import { fadeUp, stagger } from "@/lib/motion";
+import { UserAvatar } from "@/components/app/profile/UserAvatar";
+import { parseCourse } from "@/lib/profile-data";
+import {
+  acceptInvitation,
+  declineInvitation,
+  ensureCourse,
+  myInvitations,
+  requestCounts,
+  type TeamInvitation,
+} from "@/lib/team-queries";
+import { ROLE_LABEL, canManage, expiresText, type Role } from "@/lib/team-rules";
 
 export const Route = createFileRoute("/_authenticated/teams/")({
   validateSearch: z.object({ create: z.boolean().optional() }),
@@ -49,6 +60,17 @@ function TeamsPage() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(!!search.create);
   const teamsQuery = useQuery({ queryKey: ["teams"], queryFn: fetchMyTeams });
+  const invitesQuery = useQuery({ queryKey: ["my-invitations"], queryFn: myInvitations });
+  const countsQuery = useQuery({
+    queryKey: ["request-counts"],
+    queryFn: async () => {
+      try {
+        return await requestCounts();
+      } catch {
+        return {} as Record<string, number>;
+      }
+    },
+  });
 
   useEffect(() => {
     if (search.create) setOpen(true);
@@ -72,6 +94,8 @@ function TeamsPage() {
         </Button>
       }
     >
+      <InvitationsPanel invitations={invitesQuery.data ?? []} />
+
       {teamsQuery.isLoading ? (
         <CardSkeletons />
       ) : teamsQuery.isError ? (
@@ -113,6 +137,12 @@ function TeamsPage() {
                     {t.role}
                   </Badge>
                 </div>
+                {canManage(t.role as Role) && (countsQuery.data?.[t.id] ?? 0) > 0 && (
+                  <Badge className="mt-2">
+                    {countsQuery.data?.[t.id]} join request
+                    {countsQuery.data?.[t.id] === 1 ? "" : "s"} waiting
+                  </Badge>
+                )}
                 <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
                   {t.description || "No description yet."}
                 </p>
@@ -160,22 +190,9 @@ export function CreateTeamDialog({
     }
     setBusy(true);
     try {
-      let courseId: string | null = null;
-      if (form.course.trim()) {
-        const parts = form.course.trim().split(" ");
-        const code = parts[0] ?? form.course.trim();
-        const title = parts.slice(1).join(" ") || form.course.trim();
-        const existing = await supabase
-          .from("courses")
-          .select("id")
-          .eq("code", code)
-          .eq("title", title)
-          .maybeSingle();
-        courseId =
-          existing.data?.id ??
-          (await supabase.from("courses").insert({ code, title }).select("id").single()).data?.id ??
-          null;
-      }
+      // Same careful parsing as profiles: "CS201 Data Structures" -> code + title, matched ignoring case.
+      const course = parseCourse(form.course);
+      const courseId = course ? await ensureCourse(course.code, course.title) : null;
 
       const { data, error } = await supabase.rpc("create_team", {
         _name: form.name.trim(),
@@ -298,5 +315,78 @@ export function CreateTeamDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function InvitationsPanel({ invitations }: { invitations: TeamInvitation[] }) {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState<string | null>(null);
+
+  if (invitations.length === 0) return null;
+
+  async function answer(inv: TeamInvitation, accept: boolean) {
+    setBusy(inv.id);
+    try {
+      if (accept) {
+        const teamId = await acceptInvitation(inv.token);
+        toast.success(`You joined ${inv.team_name}.`);
+        await queryClient.invalidateQueries();
+        navigate({ to: "/teams/$teamId", params: { teamId } });
+      } else {
+        await declineInvitation(inv.token);
+        toast.success("Invitation declined.");
+        await queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
+        await queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't answer the invitation.");
+      void queryClient.invalidateQueries({ queryKey: ["my-invitations"] });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section aria-label="Team invitations" className="mb-6 space-y-3">
+      <h2 className="text-sm font-semibold">
+        Invitations for you <Badge className="ml-1">{invitations.length}</Badge>
+      </h2>
+      <ul className="grid gap-3 md:grid-cols-2">
+        {invitations.map((inv) => (
+          <li key={inv.id} className="surface-card space-y-3 p-4">
+            <div className="flex items-center gap-3">
+              <UserAvatar name={inv.inviter_name} path={inv.inviter_avatar} className="size-10" />
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{inv.team_name}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {inv.inviter_name ?? "A teammate"} invited you as{" "}
+                  {ROLE_LABEL[inv.role as Role].toLowerCase()} · {expiresText(inv.expires_at)}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" disabled={busy === inv.id} onClick={() => answer(inv, true)}>
+                {busy === inv.id ? (
+                  <Loader2 className="mr-1.5 size-4 animate-spin" />
+                ) : (
+                  <Check className="mr-1.5 size-4" />
+                )}
+                Accept
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy === inv.id}
+                onClick={() => answer(inv, false)}
+              >
+                <X className="mr-1.5 size-4" />
+                Decline
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

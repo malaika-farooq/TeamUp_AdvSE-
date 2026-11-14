@@ -6,12 +6,15 @@ import { toast } from "sonner";
 import {
   Activity,
   CalendarDays,
+  Check,
   Copy,
   FolderOpen,
   ListChecks,
+  Loader2,
   LogOut,
   Trash2,
   Users,
+  X,
 } from "lucide-react";
 import {
   Bar,
@@ -50,7 +53,25 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { UserAvatar } from "@/components/app/profile/UserAvatar";
+import { InviteStudentSearch } from "@/components/app/teams/InviteStudents";
 import { useAuth } from "@/lib/auth";
+import {
+  createInviteLink,
+  decideJoinRequest,
+  leaveTeam,
+  removeMember,
+  revokeInvitation,
+  setMemberRole,
+  teamJoinRequests,
+  transferOwnership,
+} from "@/lib/team-queries";
+import {
+  ROLE_HELP,
+  ROLE_LABEL,
+  expiresText,
+  inviteRolesFor,
+  memberActions,
+} from "@/lib/team-rules";
 import {
   STATUSES,
   fetchActivity,
@@ -58,8 +79,6 @@ import {
   fetchSessions,
   fetchTasks,
   fetchTeamMembers,
-  logActivity,
-  notify,
   type TeamRole,
 } from "@/lib/queries";
 
@@ -85,6 +104,12 @@ function TeamWorkspace() {
   const queryClient = useQueryClient();
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [confirm, setConfirm] = useState<null | "leave" | "delete">(null);
+  const [memberConfirm, setMemberConfirm] = useState<null | {
+    kind: "remove" | "transfer";
+    userId: string;
+    name: string;
+  }>(null);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const teamQuery = useQuery({
     queryKey: ["team", teamId],
@@ -98,7 +123,10 @@ function TeamWorkspace() {
     queryKey: ["members", teamId],
     queryFn: () => fetchTeamMembers(teamId),
   });
-  const tasksQuery = useQuery({ queryKey: ["tasks", [teamId]], queryFn: () => fetchTasks([teamId]) });
+  const tasksQuery = useQuery({
+    queryKey: ["tasks", [teamId]],
+    queryFn: () => fetchTasks([teamId]),
+  });
   const sessionsQuery = useQuery({
     queryKey: ["sessions", [teamId]],
     queryFn: () => fetchSessions([teamId]),
@@ -122,15 +150,29 @@ function TeamWorkspace() {
       return data ?? [];
     },
   });
+  // Managers see who is asking; for everyone else this simply stays empty.
   const requestsQuery = useQuery({
     queryKey: ["join-requests", teamId],
     queryFn: async () => {
+      try {
+        return await teamJoinRequests(teamId);
+      } catch {
+        return [];
+      }
+    },
+  });
+  const inviteeIds = (invitationsQuery.data ?? [])
+    .map((i) => i.invitee_id)
+    .filter((id): id is string => !!id);
+  const inviteesQuery = useQuery({
+    queryKey: ["invitees", teamId, inviteeIds.join(",")],
+    enabled: inviteeIds.length > 0,
+    queryFn: async () => {
       const { data } = await supabase
-        .from("join_requests")
-        .select("*")
-        .eq("team_id", teamId)
-        .eq("status", "pending");
-      return data ?? [];
+        .from("profiles")
+        .select("id, display_name")
+        .in("id", inviteeIds);
+      return new Map((data ?? []).map((p) => [p.id, p.display_name]));
     },
   });
 
@@ -168,95 +210,77 @@ function TeamWorkspace() {
     [members, tasks],
   );
 
-  async function createInvite(role: TeamRole) {
-    if (!user) return;
-    const token = crypto.randomUUID().replace(/-/g, "");
-    const { error } = await supabase.from("invitations").insert({
-      team_id: teamId,
-      token,
-      role,
-      created_by: user.id,
-      expires_at: new Date(Date.now() + 7 * 864e5).toISOString(),
-    });
-    if (error) return void toast.error(error.message);
-    const link = `${window.location.origin}/invite/${token}`;
-    await navigator.clipboard.writeText(link).catch(() => undefined);
-    toast.success("Invitation link created and copied. It expires in 7 days.");
-    invitationsQuery.refetch();
+  function refreshPeople() {
+    void queryClient.invalidateQueries({ queryKey: ["members", teamId] });
+    void queryClient.invalidateQueries({ queryKey: ["join-requests", teamId] });
+    void queryClient.invalidateQueries({ queryKey: ["invitations", teamId] });
+    void queryClient.invalidateQueries({ queryKey: ["activity"] });
+    void queryClient.invalidateQueries({ queryKey: ["teams"] });
+    void queryClient.invalidateQueries({ queryKey: ["request-counts"] });
   }
 
-  async function revokeInvite(id: string) {
-    const { error } = await supabase
-      .from("invitations")
-      .update({ status: "revoked" })
-      .eq("id", id);
-    if (error) return void toast.error(error.message);
-    toast.success("Invitation revoked");
-    invitationsQuery.refetch();
-  }
-
-  async function decide(requestId: string, approve: boolean) {
-    const { error } = await supabase.rpc("decide_join_request", {
-      _request: requestId,
-      _approve: approve,
-    });
-    if (error) return void toast.error(error.message);
-    toast.success(approve ? "Request approved" : "Request declined");
-    requestsQuery.refetch();
-    membersQuery.refetch();
-  }
-
-  async function changeRole(userId: string, role: TeamRole) {
-    const { error } = await supabase
-      .from("team_members")
-      .update({ role })
-      .eq("team_id", teamId)
-      .eq("user_id", userId);
-    if (error) return void toast.error(error.message);
-    if (role === "owner" && user) {
-      await supabase
-        .from("team_members")
-        .update({ role: "admin" })
-        .eq("team_id", teamId)
-        .eq("user_id", user.id);
-      await notify(userId, "team_update", "You are now a team owner", teamQuery.data?.name ?? "", `/teams`);
+  /** Runs one action, shows its result and refreshes the lists. */
+  async function act(key: string, work: () => Promise<unknown>, success: string) {
+    setBusy(key);
+    try {
+      await work();
+      toast.success(success);
+      refreshPeople();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Something went wrong. Please try again.");
+    } finally {
+      setBusy(null);
     }
-    toast.success("Role updated");
-    membersQuery.refetch();
   }
 
-  async function removeMember(userId: string) {
-    const { error } = await supabase
-      .from("team_members")
-      .delete()
-      .eq("team_id", teamId)
-      .eq("user_id", userId);
-    if (error) return void toast.error(error.message);
-    if (user) await logActivity(teamId, user.id, "member_removed", "removed a member");
-    toast.success("Member removed");
-    membersQuery.refetch();
+  async function createInvite(role: TeamRole) {
+    setBusy(`link-${role}`);
+    try {
+      const token = await createInviteLink(teamId, role);
+      const link = `${window.location.origin}/invite/${token}`;
+      await navigator.clipboard.writeText(link).catch(() => undefined);
+      toast.success("Invitation link created and copied. It works once and expires in 7 days.");
+      refreshPeople();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't create the link.");
+    } finally {
+      setBusy(null);
+    }
   }
+
+  const revokeInvite = (id: string) =>
+    act(`revoke-${id}`, () => revokeInvitation(id), "Invitation cancelled");
+  const decide = (requestId: string, approve: boolean) =>
+    act(
+      `req-${requestId}`,
+      () => decideJoinRequest(requestId, approve),
+      approve ? "Request approved. They're now a member." : "Request declined",
+    );
+  const changeRole = (userId: string, role: TeamRole) =>
+    act(`role-${userId}`, () => setMemberRole(teamId, userId, role), "Role updated");
 
   async function leave() {
-    if (!user) return;
-    if (isOwner && owners.length === 1 && members.length > 1) {
+    setBusy("leave");
+    try {
+      const deleted = await leaveTeam(teamId);
+      toast.success(
+        deleted ? "You were the only member, so the team was deleted." : "You left the team",
+      );
+      void queryClient.invalidateQueries();
+      navigate({ to: "/teams" });
+    } catch (e) {
       setConfirm(null);
-      return void toast.error("Transfer ownership to another member before leaving this team.");
+      toast.error(e instanceof Error ? e.message : "Couldn't leave the team.");
+    } finally {
+      setBusy(null);
     }
-    const { error } = await supabase
-      .from("team_members")
-      .delete()
-      .eq("team_id", teamId)
-      .eq("user_id", user.id);
-    if (error) return void toast.error(error.message);
-    toast.success("You left the team");
-    navigate({ to: "/teams" });
   }
 
   async function deleteTeam() {
     const { error } = await supabase.from("teams").delete().eq("id", teamId);
     if (error) return void toast.error(error.message);
     toast.success("Team deleted");
+    void queryClient.invalidateQueries();
     navigate({ to: "/teams" });
   }
 
@@ -302,7 +326,17 @@ function TeamWorkspace() {
           <TabsTrigger value="tasks">Task Board</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="resources">Resources</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="members">
+            Members
+            {canManage && (requestsQuery.data ?? []).length > 0 && (
+              <Badge
+                className="ml-2"
+                aria-label={`${(requestsQuery.data ?? []).length} join requests waiting`}
+              >
+                {(requestsQuery.data ?? []).length}
+              </Badge>
+            )}
+          </TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
 
@@ -400,114 +434,232 @@ function TeamWorkspace() {
 
         <TabsContent value="members" className="space-y-5">
           <div className="surface-card divide-y divide-border">
-            {members.map((m) => (
-              <div key={m.user_id} className="flex flex-wrap items-center gap-3 p-4">
-                <UserAvatar
-                  name={m.profile?.display_name ?? "Teammate"}
-                  path={m.profile?.avatar_url}
-                  className="size-10"
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{m.profile?.display_name ?? "Teammate"}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {m.profile?.university ?? "—"} · joined{" "}
-                    {new Date(m.joined_at).toLocaleDateString()}
-                  </p>
+            {members.map((m) => {
+              const isSelf = m.user_id === user?.id;
+              const actions = memberActions(myRole, m.role as TeamRole, isSelf);
+              const name = m.profile?.display_name ?? "Teammate";
+              return (
+                <div key={m.user_id} className="flex flex-wrap items-center gap-3 p-4">
+                  <UserAvatar name={name} path={m.profile?.avatar_url} className="size-10" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">
+                      {name}
+                      {isSelf && (
+                        <span className="ml-1.5 text-xs text-muted-foreground">(you)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {m.profile?.university ?? "—"} · joined{" "}
+                      {new Date(m.joined_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  {actions.changeRole ? (
+                    <Select
+                      value={m.role}
+                      disabled={busy === `role-${m.user_id}`}
+                      onValueChange={(v) => changeRole(m.user_id, v as TeamRole)}
+                    >
+                      <SelectTrigger className="w-[130px]" aria-label={`Role for ${name}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="member">Member</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Badge variant={m.role === "owner" ? "default" : "secondary"}>
+                      {ROLE_LABEL[m.role as TeamRole]}
+                    </Badge>
+                  )}
+                  {actions.transfer && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setMemberConfirm({ kind: "transfer", userId: m.user_id, name })
+                      }
+                    >
+                      Make owner
+                    </Button>
+                  )}
+                  {actions.remove && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setMemberConfirm({ kind: "remove", userId: m.user_id, name })}
+                    >
+                      Remove
+                    </Button>
+                  )}
                 </div>
-                {canManage && m.user_id !== user?.id ? (
-                  <Select
-                    value={m.role}
-                    onValueChange={(v) => changeRole(m.user_id, v as TeamRole)}
-                  >
-                    <SelectTrigger className="w-[150px]" aria-label="Role">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="member">Member</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      {isOwner && <SelectItem value="owner">Transfer ownership</SelectItem>}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Badge variant="secondary">{m.role}</Badge>
-                )}
-                {canManage && m.user_id !== user?.id && m.role !== "owner" && (
-                  <Button variant="ghost" size="sm" onClick={() => removeMember(m.user_id)}>
-                    Remove
-                  </Button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
+          <p className="text-xs text-muted-foreground">
+            {(["owner", "admin", "member"] as const)
+              .map((r) => `${ROLE_LABEL[r]}: ${ROLE_HELP[r]}`)
+              .join("  ")}
+          </p>
 
           {canManage && (
             <>
               <div className="surface-card space-y-3 p-5">
-                <h3 className="font-semibold">Invitation links</h3>
-                <p className="text-sm text-muted-foreground">
-                  Links expire after 7 days and can be revoked at any time. Share them yourself —
-                  TeamUp does not send email.
-                </p>
-                <div className="flex gap-2">
-                  <Button onClick={() => createInvite("member")}>Create member link</Button>
-                  <Button variant="outline" onClick={() => createInvite("admin")}>
-                    Create admin link
-                  </Button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">
+                    Join requests
+                    {(requestsQuery.data ?? []).length > 0 && (
+                      <Badge className="ml-2">{(requestsQuery.data ?? []).length}</Badge>
+                    )}
+                  </h3>
+                  {team.visibility !== "public" && (
+                    <span className="text-xs text-muted-foreground">
+                      This team is private, so students can't request to join. Invite people
+                      instead.
+                    </span>
+                  )}
                 </div>
-                <ul className="space-y-2">
-                  {(invitationsQuery.data ?? []).map((inv) => (
-                    <li
-                      key={inv.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm"
-                    >
-                      <span className="truncate font-mono text-xs">/invite/{inv.token.slice(0, 12)}…</span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">{inv.role}</Badge>
-                        <Badge variant={inv.status === "pending" ? "default" : "outline"}>
-                          {inv.status}
-                        </Badge>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            navigator.clipboard.writeText(
-                              `${window.location.origin}/invite/${inv.token}`,
-                            );
-                            toast.success("Link copied");
-                          }}
-                        >
-                          <Copy className="size-4" />
-                        </Button>
-                        {inv.status === "pending" && (
-                          <Button size="sm" variant="ghost" onClick={() => revokeInvite(inv.id)}>
-                            Revoke
-                          </Button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div className="surface-card space-y-3 p-5">
-                <h3 className="font-semibold">Join requests</h3>
                 {(requestsQuery.data ?? []).length === 0 ? (
                   <p className="text-sm text-muted-foreground">No pending requests.</p>
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className="space-y-3">
                     {(requestsQuery.data ?? []).map((r) => (
                       <li
-                        key={r.id}
-                        className="flex items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm"
+                        key={r.request_id}
+                        className="space-y-2 rounded-xl border border-border p-3"
                       >
-                        <span>{r.message || "Wants to join this team"}</span>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => decide(r.id, true)}>
-                            Approve
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => decide(r.id, false)}>
-                            Decline
-                          </Button>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <UserAvatar name={r.name} path={r.avatar} className="size-10" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium">{r.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {[r.major, r.university].filter(Boolean).join(" · ") || "Student"} ·
+                              asked {new Date(r.requested_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              disabled={busy === `req-${r.request_id}`}
+                              onClick={() => decide(r.request_id, true)}
+                            >
+                              {busy === `req-${r.request_id}` ? (
+                                <Loader2 className="mr-1.5 size-4 animate-spin" />
+                              ) : (
+                                <Check className="mr-1.5 size-4" />
+                              )}
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={busy === `req-${r.request_id}`}
+                              onClick={() => decide(r.request_id, false)}
+                            >
+                              <X className="mr-1.5 size-4" />
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                        {r.message && <p className="text-sm">“{r.message}”</p>}
+                        {r.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {r.skills.slice(0, 8).map((sk) => (
+                              <Badge key={sk} variant="secondary" className="text-xs">
+                                {sk}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        {r.courses.length > 0 && (
+                          <p className="text-xs text-muted-foreground">
+                            Courses: {r.courses.slice(0, 4).join(", ")}
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="surface-card space-y-4 p-5">
+                <h3 className="font-semibold">Invite students</h3>
+                <InviteStudentSearch
+                  teamId={teamId}
+                  myRole={myRole}
+                  memberIds={members.map((m) => m.user_id)}
+                  onInvited={refreshPeople}
+                />
+              </div>
+
+              <div className="surface-card space-y-3 p-5">
+                <h3 className="font-semibold">Invitation links</h3>
+                <p className="text-sm text-muted-foreground">
+                  A link works for one person and expires after 7 days. TeamUp doesn't send email,
+                  so share it yourself. You can cancel it any time.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {inviteRolesFor(myRole).map((r) => (
+                    <Button
+                      key={r}
+                      variant={r === "member" ? "default" : "outline"}
+                      disabled={busy === `link-${r}`}
+                      onClick={() => createInvite(r)}
+                    >
+                      {busy === `link-${r}` && <Loader2 className="mr-2 size-4 animate-spin" />}
+                      Create {r} link
+                    </Button>
+                  ))}
+                </div>
+                {(invitationsQuery.data ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No invitations yet.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(invitationsQuery.data ?? []).slice(0, 25).map((inv) => (
+                      <li
+                        key={inv.id}
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border p-3 text-sm"
+                      >
+                        <span className="min-w-0 truncate">
+                          {inv.invitee_id
+                            ? `To ${inviteesQuery.data?.get(inv.invitee_id) ?? "a student"}`
+                            : `Link ···${inv.token.slice(-6)}`}
+                          {inv.status === "pending" && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {expiresText(inv.expires_at)}
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">{inv.role}</Badge>
+                          <Badge variant={inv.status === "pending" ? "default" : "outline"}>
+                            {inv.status}
+                          </Badge>
+                          {inv.status === "pending" && !inv.invitee_id && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              aria-label="Copy invitation link"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(
+                                  `${window.location.origin}/invite/${inv.token}`,
+                                );
+                                toast.success("Link copied");
+                              }}
+                            >
+                              <Copy className="size-4" />
+                            </Button>
+                          )}
+                          {inv.status === "pending" && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              disabled={busy === `revoke-${inv.id}`}
+                              onClick={() => revokeInvite(inv.id)}
+                            >
+                              Cancel
+                            </Button>
+                          )}
                         </div>
                       </li>
                     ))}
@@ -570,13 +722,66 @@ function TeamWorkspace() {
             <AlertDialogDescription>
               {confirm === "delete"
                 ? "All tasks, sessions, resources and files for this team will be permanently removed."
-                : "You'll lose access to this team's tasks, files and sessions."}
+                : isOwner && members.length > 1
+                  ? "You own this team. Make another member the owner first (Members tab → Make owner), then you can leave."
+                  : isOwner
+                    ? "You're the only member, so leaving will delete the team and everything in it."
+                    : "You'll lose access to this team's tasks, files and sessions. Tasks assigned to you become unassigned."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirm === "delete" ? deleteTeam : leave}>
-              {confirm === "delete" ? "Delete team" : "Leave team"}
+            <AlertDialogAction
+              disabled={confirm === "leave" && isOwner && members.length > 1}
+              onClick={confirm === "delete" ? deleteTeam : leave}
+            >
+              {confirm === "delete"
+                ? "Delete team"
+                : isOwner && members.length === 1
+                  ? "Leave and delete"
+                  : "Leave team"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!memberConfirm} onOpenChange={(v) => !v && setMemberConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {memberConfirm?.kind === "transfer"
+                ? `Make ${memberConfirm.name} the owner?`
+                : `Remove ${memberConfirm?.name ?? "this person"}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberConfirm?.kind === "transfer"
+                ? "They become the only owner and you become an admin. Only the new owner can undo this."
+                : "They lose access to this team and their tasks become unassigned. They can ask to join again."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const c = memberConfirm;
+                setMemberConfirm(null);
+                if (!c) return;
+                if (c.kind === "transfer") {
+                  void act(
+                    `own-${c.userId}`,
+                    () => transferOwnership(teamId, c.userId),
+                    `${c.name} is now the owner`,
+                  );
+                } else {
+                  void act(
+                    `rm-${c.userId}`,
+                    () => removeMember(teamId, c.userId),
+                    `${c.name} was removed`,
+                  );
+                }
+              }}
+            >
+              {memberConfirm?.kind === "transfer" ? "Transfer ownership" : "Remove"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

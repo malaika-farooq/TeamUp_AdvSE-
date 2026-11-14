@@ -48,6 +48,7 @@ import {
 import { readableError, streamWrite, type WriteTool } from "@/lib/ai-client";
 import { tidyMarkdown } from "@/lib/markdown";
 import { UserAvatar } from "@/components/app/profile/UserAvatar";
+import { inviteStudent, revokeInvitation } from "@/lib/team-queries";
 import { MAX_TEAMMATE_SUGGESTIONS } from "@/lib/teammate-ranking";
 import {
   breakdownTask,
@@ -73,11 +74,31 @@ const AI_PROSE =
   "leading-relaxed [&_h1]:mt-6 [&_h1]:mb-2 [&_h1]:font-display [&_h1]:text-xl [&_h2]:mt-6 [&_h2]:mb-2 [&_h2]:font-display [&_h2]:text-lg [&_h2]:text-foreground [&_h3]:mt-4 [&_h3]:mb-1 [&_h3]:font-display [&_h3]:text-base [&_strong]:text-foreground [&_ol]:space-y-1 [&_ul]:space-y-1";
 
 const WRITER_COPY: Record<WriteTool, { button: string; working: string; noteTitle: string }> = {
-  summary: { button: "Summarize progress", working: "Reading your tasks, notes and activity…", noteTitle: "Progress summary" },
-  study_guide: { button: "Make a study guide", working: "Turning your notes into a study guide…", noteTitle: "Study guide" },
-  quiz: { button: "Make a practice quiz", working: "Writing quiz questions from your notes…", noteTitle: "Practice quiz" },
-  agenda: { button: "Draft the agenda", working: "Planning your meeting…", noteTitle: "Meeting agenda" },
-  checkin: { button: "Write the weekly check-in", working: "Reviewing this week's work…", noteTitle: "Weekly check-in" },
+  summary: {
+    button: "Summarize progress",
+    working: "Reading your tasks, notes and activity…",
+    noteTitle: "Progress summary",
+  },
+  study_guide: {
+    button: "Make a study guide",
+    working: "Turning your notes into a study guide…",
+    noteTitle: "Study guide",
+  },
+  quiz: {
+    button: "Make a practice quiz",
+    working: "Writing quiz questions from your notes…",
+    noteTitle: "Practice quiz",
+  },
+  agenda: {
+    button: "Draft the agenda",
+    working: "Planning your meeting…",
+    noteTitle: "Meeting agenda",
+  },
+  checkin: {
+    button: "Write the weekly check-in",
+    working: "Reviewing this week's work…",
+    noteTitle: "Weekly check-in",
+  },
 };
 
 export function WriterTool({ tool, teamId }: { tool: WriteTool; teamId: string }) {
@@ -177,7 +198,10 @@ export function WriterTool({ tool, teamId }: { tool: WriteTool; teamId: string }
           {notesQuery.isSuccess && notes.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               This team has no notes yet.{" "}
-              <Link to="/resources" className="font-medium text-primary underline-offset-4 hover:underline">
+              <Link
+                to="/resources"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+              >
                 Add one in Resources
               </Link>{" "}
               first.
@@ -192,7 +216,9 @@ export function WriterTool({ tool, teamId }: { tool: WriteTool; teamId: string }
                     type="button"
                     aria-pressed={on}
                     onClick={() =>
-                      setNoteIds((prev) => (on ? prev.filter((x) => x !== n.id) : [...prev, n.id].slice(-6)))
+                      setNoteIds((prev) =>
+                        on ? prev.filter((x) => x !== n.id) : [...prev, n.id].slice(-6),
+                      )
                     }
                     className={
                       on
@@ -212,7 +238,10 @@ export function WriterTool({ tool, teamId }: { tool: WriteTool; teamId: string }
       {tool === "agenda" && (
         <div className="max-w-sm space-y-2">
           <Label>Meeting</Label>
-          <Select value={sessionId || "next"} onValueChange={(v) => setSessionId(v === "next" ? "" : v)}>
+          <Select
+            value={sessionId || "next"}
+            onValueChange={(v) => setSessionId(v === "next" ? "" : v)}
+          >
             <SelectTrigger aria-label="Meeting">
               <SelectValue />
             </SelectTrigger>
@@ -222,7 +251,11 @@ export function WriterTool({ tool, teamId }: { tool: WriteTool; teamId: string }
               </SelectItem>
               {upcoming.slice(0, 10).map((s) => (
                 <SelectItem key={s.id} value={s.id}>
-                  {s.title} · {new Date(s.starts_at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}
+                  {s.title} ·{" "}
+                  {new Date(s.starts_at).toLocaleString([], {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -313,7 +346,8 @@ export function PlanTool({ teamId }: { teamId: string }) {
       });
       setMembers(res.members);
       setDrafts(res.tasks.map((t) => ({ ...t, selected: true })));
-      if (!res.tasks.length) setError("The assistant didn't suggest any tasks. Try adding a focus.");
+      if (!res.tasks.length)
+        setError("The assistant didn't suggest any tasks. Try adding a focus.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "The assistant is unavailable right now.");
     } finally {
@@ -361,7 +395,9 @@ export function PlanTool({ teamId }: { teamId: string }) {
     await Promise.all(
       created
         .filter((t) => t.assignee_id && t.assignee_id !== user.id)
-        .map((t) => notify(t.assignee_id!, "task_assigned", "New task assigned to you", t.title, "/tasks")),
+        .map((t) =>
+          notify(t.assignee_id!, "task_assigned", "New task assigned to you", t.title, "/tasks"),
+        ),
     );
     await logActivity(teamId, user.id, "task_created", `added ${created.length} planned tasks`);
     setSaving(false);
@@ -400,7 +436,11 @@ export function PlanTool({ teamId }: { teamId: string }) {
         </div>
       </div>
       <Button onClick={run} disabled={busy}>
-        {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Wand2 className="mr-2 size-4" />}
+        {busy ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <Wand2 className="mr-2 size-4" />
+        )}
         {drafts.length ? "Draft a new plan" : "Draft a plan"}
       </Button>
 
@@ -482,7 +522,8 @@ export function PlanTool({ teamId }: { teamId: string }) {
                   aria-label="Due date"
                   value={d.dueDate.slice(0, 10)}
                   onChange={(e) =>
-                    e.target.value && update(i, { dueDate: new Date(`${e.target.value}T17:00:00Z`).toISOString() })
+                    e.target.value &&
+                    update(i, { dueDate: new Date(`${e.target.value}T17:00:00Z`).toISOString() })
                   }
                 />
               </div>
@@ -520,7 +561,10 @@ export function PlanTool({ teamId }: { teamId: string }) {
 
 /* ----------------------------- Teammate ideas ----------------------------- */
 
-const TEAMMATE_EMPTY: Record<NonNullable<TeammateResult["empty"]>, { title: string; description: string }> = {
+const TEAMMATE_EMPTY: Record<
+  NonNullable<TeammateResult["empty"]>,
+  { title: string; description: string }
+> = {
   none_discoverable: {
     title: "No discoverable students yet",
     description:
@@ -528,7 +572,8 @@ const TEAMMATE_EMPTY: Record<NonNullable<TeammateResult["empty"]>, { title: stri
   },
   all_members: {
     title: "Everyone discoverable is already on this team",
-    description: "Every student who chose to be discoverable is already a member, so there's nobody new to suggest.",
+    description:
+      "Every student who chose to be discoverable is already a member, so there's nobody new to suggest.",
   },
   no_matches: {
     title: "Nobody matches yet",
@@ -545,6 +590,8 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
   const { user } = useAuth();
   const [decisions, setDecisions] = useState<Record<string, "accepted" | "declined">>({});
   const [pending, setPending] = useState<string | null>(null);
+  // student id -> id of the invitation we sent, so it can be taken back
+  const [invites, setInvites] = useState<Record<string, string>>({});
   const [wanted, setWanted] = useState<string[]>([]);
   const [wantedInput, setWantedInput] = useState("");
 
@@ -564,27 +611,38 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
     setDecisions({});
   }, [teamId]);
 
-  /** Accept = invite this student: they get a notification pointing them to the team. */
+  /** Accept = send this student a real team invitation they can accept or decline in My Teams. */
   async function accept(p: { id: string; name: string }) {
     if (!user || pending) return;
     setPending(p.id);
-    const { error: err } = await supabase.from("notifications").insert({
-      user_id: p.id,
-      type: "team_suggestion",
-      title: "A team would like you to join",
-      body: "A student team thinks you'd be a great fit. Open the team and request to join.",
-      link: "/discover",
-      dedupe_key: `suggest:${teamId}:${p.id}`,
-    });
-    setPending(null);
-    // 23505 = already invited earlier; treat as accepted.
-    if (err && err.code !== "23505") {
-      toast.error("Couldn't send the invitation. Please try again.");
-      return;
+    try {
+      const invitationId = await inviteStudent(teamId, p.id);
+      setInvites((m) => ({ ...m, [p.id]: invitationId }));
+      setDecisions((d) => ({ ...d, [p.id]: "accepted" }));
+      toast.success(`Invitation sent to ${p.name}.`);
+    } catch (e) {
+      toast.error(
+        e instanceof Error ? e.message : "Couldn't send the invitation. Please try again.",
+      );
+    } finally {
+      setPending(null);
     }
-    setDecisions((d) => ({ ...d, [p.id]: "accepted" }));
-    void logActivity(teamId, user.id, "teammate_suggested", `invited ${p.name} to join`, p.id);
-    toast.success(`Invitation sent to ${p.name}.`);
+  }
+
+  async function takeBack(p: { id: string; name: string }) {
+    const invitationId = invites[p.id];
+    if (!invitationId || pending) return;
+    setPending(p.id);
+    try {
+      await revokeInvitation(invitationId);
+      setInvites(({ [p.id]: _gone, ...rest }) => rest);
+      setDecisions(({ [p.id]: _removed, ...rest }) => rest);
+      toast.success(`Invitation to ${p.name} cancelled.`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't cancel the invitation.");
+    } finally {
+      setPending(null);
+    }
   }
 
   function decline(id: string) {
@@ -604,7 +662,9 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
     setResult(null);
     setDecisions({});
     try {
-      const res = await suggest({ data: { teamId, wantedSkills: wanted.length ? wanted : undefined } });
+      const res = await suggest({
+        data: { teamId, wantedSkills: wanted.length ? wanted : undefined },
+      });
       if (!res || !Array.isArray(res.suggestions)) {
         throw new Error("The assistant returned an unreadable answer. Please try again.");
       }
@@ -617,7 +677,8 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
   }
 
   const people = result?.suggestions ?? null;
-  const empty = result && people?.length === 0 ? TEAMMATE_EMPTY[result.empty ?? "no_matches"] : null;
+  const empty =
+    result && people?.length === 0 ? TEAMMATE_EMPTY[result.empty ?? "no_matches"] : null;
 
   return (
     <div className="space-y-4">
@@ -669,7 +730,11 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
         </p>
       </div>
       <Button onClick={run} disabled={busy}>
-        {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Wand2 className="mr-2 size-4" />}
+        {busy ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <Wand2 className="mr-2 size-4" />
+        )}
         {result ? "Suggest again" : "Suggest teammates"}
       </Button>
       {busy && <Working text="Comparing courses, skills and free time…" />}
@@ -714,19 +779,29 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
                 </p>
               </div>
               {p.rank === 1 && (
-                <Badge className="ml-auto shrink-0 bg-primary/15 text-primary hover:bg-primary/15">Best match</Badge>
+                <Badge className="ml-auto shrink-0 bg-primary/15 text-primary hover:bg-primary/15">
+                  Best match
+                </Badge>
               )}
             </div>
             {p.reason && <p className="text-sm">{p.reason}</p>}
             <div className="flex flex-wrap gap-1.5">
               {p.sharedCourses.map((c) => (
-                <Badge key={c} variant="outline" className="border-teal/40 bg-teal/10 text-foreground">
+                <Badge
+                  key={c}
+                  variant="outline"
+                  className="border-teal/40 bg-teal/10 text-foreground"
+                >
                   <GraduationCap className="mr-1 size-3" />
                   {c}
                 </Badge>
               ))}
               {p.newSkills.map((s) => (
-                <Badge key={s} variant="outline" className="border-lavender/40 bg-lavender/10 text-foreground">
+                <Badge
+                  key={s}
+                  variant="outline"
+                  className="border-lavender/40 bg-lavender/10 text-foreground"
+                >
                   + {s}
                 </Badge>
               ))}
@@ -738,10 +813,20 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
               )}
             </div>
             {decisions[p.id] === "accepted" ? (
-              <Badge className="bg-teal/15 text-foreground hover:bg-teal/15">
-                <Check className="mr-1 size-3" />
-                Invitation sent
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-teal/15 text-foreground hover:bg-teal/15">
+                  <Check className="mr-1 size-3" />
+                  Invitation sent
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => takeBack(p)}
+                  disabled={pending === p.id}
+                >
+                  Take back
+                </Button>
+              </div>
             ) : decisions[p.id] === "declined" ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <X className="size-4" />
@@ -760,7 +845,12 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
                   )}
                   Accept
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => decline(p.id)} disabled={pending === p.id}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => decline(p.id)}
+                  disabled={pending === p.id}
+                >
                   <X className="mr-1 size-4" />
                   Decline
                 </Button>
@@ -783,7 +873,10 @@ export function TeammatesTool({ teamId }: { teamId: string }) {
 export function BreakdownTool({ teamId }: { teamId: string }) {
   const queryClient = useQueryClient();
   const breakdown = useServerFn(breakdownTask);
-  const tasksQuery = useQuery({ queryKey: ["tasks", [teamId]], queryFn: () => fetchTasks([teamId]) });
+  const tasksQuery = useQuery({
+    queryKey: ["tasks", [teamId]],
+    queryFn: () => fetchTasks([teamId]),
+  });
   const open = (tasksQuery.data ?? []).filter((t) => t.status !== "done");
   const [taskId, setTaskId] = useState("");
   const [steps, setSteps] = useState<{ label: string; selected: boolean }[]>([]);
@@ -820,7 +913,11 @@ export function BreakdownTool({ teamId }: { teamId: string }) {
       .select("id", { count: "exact", head: true })
       .eq("task_id", taskId);
     const { error: err } = await supabase.from("task_checklist_items").insert(
-      chosen.map((s, i) => ({ task_id: taskId, label: s.label.trim(), position: (count ?? 0) + i })),
+      chosen.map((s, i) => ({
+        task_id: taskId,
+        label: s.label.trim(),
+        position: (count ?? 0) + i,
+      })),
     );
     if (err) return void toast.error(err.message);
     toast.success(`${chosen.length} steps added to the task's checklist`);
@@ -834,7 +931,9 @@ export function BreakdownTool({ teamId }: { teamId: string }) {
       <div className="flex flex-col gap-2 sm:flex-row">
         <Select value={taskId} onValueChange={setTaskId}>
           <SelectTrigger className="sm:max-w-md" aria-label="Task to break down">
-            <SelectValue placeholder={open.length ? "Choose a task" : "No open tasks in this team"} />
+            <SelectValue
+              placeholder={open.length ? "Choose a task" : "No open tasks in this team"}
+            />
           </SelectTrigger>
           <SelectContent>
             {open.map((t) => (
@@ -845,7 +944,11 @@ export function BreakdownTool({ teamId }: { teamId: string }) {
           </SelectContent>
         </Select>
         <Button onClick={run} disabled={!taskId || busy}>
-          {busy ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Wrench className="mr-2 size-4" />}
+          {busy ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <Wrench className="mr-2 size-4" />
+          )}
           Break it down
         </Button>
       </div>
@@ -864,7 +967,9 @@ export function BreakdownTool({ teamId }: { teamId: string }) {
               <Input
                 value={s.label}
                 onChange={(e) =>
-                  setSteps((prev) => prev.map((p, j) => (j === i ? { ...p, label: e.target.value } : p)))
+                  setSteps((prev) =>
+                    prev.map((p, j) => (j === i ? { ...p, label: e.target.value } : p)),
+                  )
                 }
                 aria-label={`Step ${i + 1}`}
               />

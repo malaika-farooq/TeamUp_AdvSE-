@@ -45,6 +45,7 @@ function AuthPage() {
   const [sent, setSent] = useState<string | null>(null);
 
   useEffect(() => {
+    // Someone who is already signed in never needs this page: send them on.
     if (!loading && user) {
       navigate({ to: safePath(search.redirect) ?? "/dashboard", replace: true });
     }
@@ -65,14 +66,21 @@ function AuthPage() {
         });
         if (error) throw error;
         if (!data.session) {
-          setSent("Check your email to confirm your account, then sign in.");
+          // The account exists but the email must be confirmed first: move to the sign-in form
+          // (email stays filled in) so the next step is obvious.
+          setMode("signin");
+          setPassword("");
+          setSent(
+            `Account created! We sent a confirmation link to ${email}. Open it, then sign in here.`,
+          );
+          toast.success("Account created. Check your email, then sign in.");
         } else {
-          navigate({ to: safePath(search.redirect) ?? "/onboarding" });
+          navigate({ to: safePath(search.redirect) ?? "/onboarding", replace: true });
         }
       } else if (mode === "signin") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: safePath(search.redirect) ?? "/dashboard" });
+        navigate({ to: safePath(search.redirect) ?? "/dashboard", replace: true });
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
@@ -81,7 +89,17 @@ function AuthPage() {
         setSent("If that address has an account, a reset link is on its way.");
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong");
+      const message = err instanceof Error ? err.message : "Something went wrong";
+      if (/email not confirmed/i.test(message)) {
+        setSent(`Please confirm ${email} first: open the link we emailed you, then sign in.`);
+        toast.error("Your email isn't confirmed yet.");
+      } else if (/failed to fetch|networkerror/i.test(message)) {
+        toast.error(
+          "Couldn't reach the server. Check your connection and the Supabase settings in .env.",
+        );
+      } else {
+        toast.error(message);
+      }
     } finally {
       setBusy(false);
     }
@@ -191,7 +209,8 @@ function AuthPage() {
           {mode !== "reset" && (
             <>
               <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="h-px flex-1 bg-border" /> or <span className="h-px flex-1 bg-border" />
+                <span className="h-px flex-1 bg-border" /> or{" "}
+                <span className="h-px flex-1 bg-border" />
               </div>
               <Button variant="outline" className="w-full" onClick={google}>
                 Continue with Google

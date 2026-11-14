@@ -39,7 +39,7 @@ declare
   starts int[] := array[480,600,780,960,1080,1200];
   bulk uuid[] := '{}';
   all_courses uuid[]; all_skills uuid[];
-  bid uuid; tm uuid; owner_id uuid; i int; k int; st int; n int;
+  bid uuid; tm uuid; owner_id uuid; i int; k int; st int; n int; tok text;
   team_ids uuid[] := array[
     'b1000000-0000-4000-8000-000000000003','b1000000-0000-4000-8000-000000000004',
     'b1000000-0000-4000-8000-000000000005','b1000000-0000-4000-8000-000000000006']::uuid[];
@@ -383,6 +383,21 @@ begin
       ('c1000000-0000-4000-8000-000000000005', me,      'accepted'),
       ('c1000000-0000-4000-8000-000000000005', bulk[3], 'declined'),
       ('c1000000-0000-4000-8000-000000000005', bulk[1], 'invited')
+    on conflict do nothing;
+  end if;
+
+  -- Team invitations (needs migration 0008): an invitation addressed to you, plus a request of yours that is
+  -- still waiting, so you can try Accept / Decline and "Cancel request" straight away.
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'public' and table_name = 'invitations' and column_name = 'invitee_id') then
+    insert into public.invitations (team_id, role, created_by, invitee_id)
+    values (team_ids[1], 'member', bulk[1], me) returning token into tok;
+    insert into public.notifications (user_id, type, title, body, link, dedupe_key)
+    values (me, 'team_invite', 'Team invitation',
+            fn[1] || ' ' || ln[1] || ' invited you to join "Database Design Group".', '/invite/' || tok, 'seed:invite:' || team_ids[1])
+    on conflict do nothing;
+    insert into public.join_requests (team_id, user_id, message)
+    values (team_ids[3], me, 'I would love to help with the usability tests.')
     on conflict do nothing;
   end if;
 

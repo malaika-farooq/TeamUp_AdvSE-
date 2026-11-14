@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import {
   CalendarDays,
@@ -61,7 +62,13 @@ const features = [
 ];
 
 function Landing() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Signed-in students never need the sales page: take them to their dashboard.
+  useEffect(() => {
+    if (!loading && user) navigate({ to: "/dashboard", replace: true });
+  }, [loading, user, navigate]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -122,21 +129,30 @@ function Landing() {
               variants={fadeUp}
               className="mx-auto mt-5 max-w-2xl text-pretty text-base text-muted-foreground sm:text-lg"
             >
-              TeamUp brings your study group's schedule, tasks, notes and progress into one
-              calm workspace — so everyone knows what is due, who owns it, and when you are meeting
-              next.
+              TeamUp brings your study group's schedule, tasks, notes and progress into one calm
+              workspace — so everyone knows what is due, who owns it, and when you are meeting next.
             </motion.p>
             <motion.div variants={fadeUp} className="mt-8 flex flex-wrap justify-center gap-3">
-              <Button asChild size="lg" className="shadow-[var(--shadow-glow)]">
-                <Link to="/auth" search={{ mode: "signup", redirect: undefined }}>
-                  Get Started <ArrowRight className="ml-1 size-4" />
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link to="/auth" search={{ mode: "signin", redirect: undefined }}>
-                  Sign In
-                </Link>
-              </Button>
+              {user ? (
+                <Button asChild size="lg" className="shadow-[var(--shadow-glow)]">
+                  <Link to="/dashboard">
+                    Open dashboard <ArrowRight className="ml-1 size-4" />
+                  </Link>
+                </Button>
+              ) : (
+                <>
+                  <Button asChild size="lg" className="shadow-[var(--shadow-glow)]">
+                    <Link to="/auth" search={{ mode: "signup", redirect: undefined }}>
+                      Get Started <ArrowRight className="ml-1 size-4" />
+                    </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <Link to="/auth" search={{ mode: "signin", redirect: undefined }}>
+                      Sign In
+                    </Link>
+                  </Button>
+                </>
+              )}
             </motion.div>
 
             <DashboardPreview />
@@ -172,9 +188,13 @@ function Landing() {
               Create your first team in under a minute, or spin up a sample workspace to explore.
             </p>
             <Button asChild size="lg" className="mt-7">
-              <Link to="/auth" search={{ mode: "signup", redirect: undefined }}>
-                Create your free account
-              </Link>
+              {user ? (
+                <Link to="/dashboard">Open dashboard</Link>
+              ) : (
+                <Link to="/auth" search={{ mode: "signup", redirect: undefined }}>
+                  Create your free account
+                </Link>
+              )}
             </Button>
           </div>
         </section>

@@ -6,7 +6,7 @@ TeamUp is a collaborative study and team-planning web app. Students create or jo
 
 - **Profiles:** profile photo, enrolled courses, skills with a 1–5 level, and weekly availability (quick Morning/Afternoon/Evening blocks or exact times), editable any time in Settings, with a completeness meter.
 - **Accounts:** email/password and Google sign-in, plus a three-step onboarding.
-- **Teams:** public or private teams, discovery, join requests, invite links, owner/admin/member roles.
+- **Teams:** public or private teams with owner / admin / member roles, plus a full invitation and request workflow (see below).
 - **Tasks and calendar:** priorities, due dates, assignees, checklists, comments, study sessions with RSVP.
 - **Resources:** notes, links and files per team (private storage).
 - **Study partners:** requests, accepted partners, and group study sessions with accept/decline.
@@ -75,10 +75,11 @@ Migrations are plain SQL files in `drizzle/migrations/`. Run them **in order** i
 | `0005_study_partners.sql` | Partner requests, study sessions, matching RPCs |
 | `0006_partner_time_preferences.sql` | Time-window preference matching |
 | `0007_profile_completion.sql` | Storage buckets (`avatars`, `team-files`), de-duplicates skills/courses, all-or-nothing save functions for courses, skills and availability, partner photos |
+| `0008_team_workflow.sql` | Team roles and the invitation / join-request workflow. All membership, role, invitation and request changes now go through checked functions (before, any student could write those tables directly). Run after 0007 |
 
 If study-partner features say matching "isn't set up in the database yet", migrations 0005 and 0006 have not been run.
 
-If saving courses, skills, availability or a profile photo says "isn't set up", migration 0007 has not been run.
+If saving courses, skills, availability or a profile photo says "isn't set up", migration 0007 has not been run. If team invitations, join requests or role changes say "isn't set up", migration 0008 has not been run.
 
 **Test data (optional):** open `supabase/seed.sql`, set `my_email` to the email of an account you have already signed up with, then run it in the SQL editor. It creates sample students (`@teamup.test`), courses, skills, availability, teams, tasks, sessions, partner requests and notifications around your account. Cleanup deletes the `@teamup.test` users and the seeded teams.
 
@@ -86,6 +87,19 @@ If saving courses, skills, availability or a profile photo says "isn't set up", 
 
 - **Email confirmation:** if "Confirm email" is on (Authentication → Providers → Email), new users must click the emailed link before signing in, and the built-in mailer is rate-limited. Turn it off while testing.
 - **Google sign-in:** add `http://localhost:3000` to Authentication → URL Configuration → Redirect URLs.
+
+## How teams, invitations and requests work
+
+| Who | Can do |
+| --- | --- |
+| **Owner** | Everything: invite members or admins, answer join requests, change roles, make someone else the owner, remove anyone, delete the team |
+| **Admin** | Invite members, answer join requests, remove plain members |
+| **Member** | Use the team's tasks, sessions and resources; leave |
+
+- **Join requests:** students ask to join a *public* team from Discover with an optional message. Owners and admins are notified, see who is asking (name, photo, courses, skills) and approve or decline; the student is notified. The student can cancel a pending request, and can ask again 7 days after a decline.
+- **Invitations:** owners and admins invite a discoverable student by name (from the team's Members tab, Discover, or the AI "Teammate ideas" tool). The student sees it in **My Teams** and in notifications and can accept or decline. A shareable invitation link works once and expires after 7 days; only the owner can create admin invitations.
+- **Ownership:** a team always has exactly one owner. Transfer ownership to leave; if you are the only member, leaving deletes the team.
+- These rules are enforced in the database (`0008_team_workflow.sql`), not just hidden in the screens.
 
 ## Commands
 

@@ -2,18 +2,31 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Compass, Search, Users } from "lucide-react";
+import { Compass, Loader2, Search, UserPlus, Users } from "lucide-react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app/AppShell";
 import { CardSkeletons, EmptyState } from "@/components/app/states";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { InviteToTeamDialog, type ManagedTeam } from "@/components/app/teams/InviteStudents";
 import { UserAvatar } from "@/components/app/profile/UserAvatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { accentClasses } from "@/lib/queries";
+import { accentClasses, fetchMyTeams } from "@/lib/queries";
+import { courseLabel as formatCourse } from "@/lib/profile-data";
+import { cancelJoinRequest, requestToJoin } from "@/lib/team-queries";
+import { canManage, requestState, type Role } from "@/lib/team-rules";
 import { fadeUp, stagger } from "@/lib/motion";
 
 export const Route = createFileRoute("/_authenticated/discover")({
@@ -39,7 +52,7 @@ function Discover() {
       const [teams, memberships, requests, courses] = await Promise.all([
         supabase.from("teams").select("*").eq("visibility", "public"),
         supabase.from("team_members").select("team_id"),
-        supabase.from("join_requests").select("team_id, status"),
+        supabase.from("join_requests").select("id, team_id, status, decided_at"),
         supabase.from("courses").select("*"),
       ]);
       if (teams.error) throw new Error(teams.error.message);
@@ -68,9 +81,7 @@ function Discover() {
       ]);
       if (profiles.error) throw new Error(profiles.error.message);
       const skillName = new Map((skills.data ?? []).map((s) => [s.id, s.name]));
-      const courseLabel = new Map(
-        (courses.data ?? []).map((c) => [c.id, `${c.code} ${c.title}`]),
-      );
+      const courseLabel = new Map((courses.data ?? []).map((c) => [c.id, formatCourse(c)]));
       return (profiles.data ?? [])
         .filter((p) => p.id !== user?.id)
         .map((p) => ({
@@ -103,21 +114,45 @@ function Discover() {
     );
   });
 
-  async function requestJoin(teamId: string) {
-    if (!user) return;
-    const { error } = await supabase
-      .from("join_requests")
-      .insert({ team_id: teamId, user_id: user.id, message: "I'd like to join this team." });
-    if (error) {
-      toast.error(
-        error.message.includes("duplicate")
-          ? "You've already requested to join this team."
-          : error.message,
-      );
-      return;
+  const [askTeam, setAskTeam] = useState<{ id: string; name: string } | null>(null);
+  const [askMessage, setAskMessage] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [inviting, setInviting] = useState<{ id: string; name: string } | null>(null);
+
+  // Teams I can invite people to (I own or administer them).
+  const myTeamsQuery = useQuery({ queryKey: ["teams"], queryFn: fetchMyTeams, enabled: !!user });
+  const managedTeams: ManagedTeam[] = (myTeamsQuery.data ?? [])
+    .filter((t) => canManage(t.role as Role))
+    .map((t) => ({ id: t.id, name: t.name, role: t.role as Role }));
+
+  async function sendRequest() {
+    if (!askTeam) return;
+    setAsking(true);
+    try {
+      await requestToJoin(askTeam.id, askMessage);
+      toast.success(`Request sent. The owners of ${askTeam.name} will review it.`);
+      setAskTeam(null);
+      setAskMessage("");
+      await queryClient.invalidateQueries({ queryKey: ["discover"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't send your request.");
+    } finally {
+      setAsking(false);
     }
-    toast.success("Join request sent — the team owner will review it.");
-    queryClient.invalidateQueries({ queryKey: ["discover"] });
+  }
+
+  async function withdraw(requestId: string) {
+    setCancelling(requestId);
+    try {
+      await cancelJoinRequest(requestId);
+      toast.success("Request cancelled.");
+      await queryClient.invalidateQueries({ queryKey: ["discover"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Couldn't cancel the request.");
+    } finally {
+      setCancelling(null);
+    }
   }
 
   const people = (peopleQuery.data ?? []).filter((p) => {
@@ -133,7 +168,10 @@ function Discover() {
   });
 
   return (
-    <AppShell title="Discover" description="Public study teams and classmates open to collaborating.">
+    <AppShell
+      title="Discover"
+      description="Public study teams and classmates open to collaborating."
+    >
       <div className="relative mb-5 max-w-md">
         <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -204,6 +242,17 @@ function Discover() {
                       Courses: {p.courses.slice(0, 3).join(", ")}
                     </p>
                   )}
+                  {managedTeams.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-4"
+                      onClick={() => setInviting({ id: p.id, name: p.display_name })}
+                    >
+                      <UserPlus className="mr-1.5 size-4" />
+                      Invite to a team
+                    </Button>
+                  )}
                 </motion.article>
               ))}
             </motion.div>
@@ -211,58 +260,119 @@ function Discover() {
         </TabsContent>
 
         <TabsContent value="teams">
-      {query.isLoading ? (
-        <CardSkeletons />
-      ) : results.length === 0 ? (
-        <EmptyState
-          icon={Compass}
-          title="No public teams match"
-          description="Try a different keyword, or create a public team so classmates can find you."
-        />
-      ) : (
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          animate="show"
-          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          {results.map((t) => {
-            const isMember = query.data?.memberIds.has(t.id);
-            const pending = query.data?.requests.find(
-              (r) => r.team_id === t.id && r.status === "pending",
-            );
-            return (
-              <motion.article key={t.id} variants={fadeUp} className="surface-card hover-lift p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold">{t.name}</h3>
-                  <Badge variant="outline" className={accentClasses(t.accent)}>
-                    public
-                  </Badge>
-                </div>
-                {courseName(t.course_id) && (
-                  <p className="mt-1 text-xs text-muted-foreground">{courseName(t.course_id)}</p>
-                )}
-                <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
-                  {t.description || t.project_goal || "No description yet."}
-                </p>
-                <div className="mt-4">
-                  {isMember ? (
-                    <Badge variant="secondary">You're a member</Badge>
-                  ) : pending ? (
-                    <Badge variant="secondary">Request pending</Badge>
-                  ) : (
-                    <Button size="sm" onClick={() => requestJoin(t.id)}>
-                      Request to join
-                    </Button>
-                  )}
-                </div>
-              </motion.article>
-            );
-          })}
-        </motion.div>
-      )}
+          {query.isLoading ? (
+            <CardSkeletons />
+          ) : results.length === 0 ? (
+            <EmptyState
+              icon={Compass}
+              title="No public teams match"
+              description="Try a different keyword, or create a public team so classmates can find you."
+            />
+          ) : (
+            <motion.div
+              variants={stagger}
+              initial="hidden"
+              animate="show"
+              className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+            >
+              {results.map((t) => {
+                const isMember = query.data?.memberIds.has(t.id);
+                const myRequest = query.data?.requests.find((r) => r.team_id === t.id);
+                const state = requestState(myRequest);
+                return (
+                  <motion.article
+                    key={t.id}
+                    variants={fadeUp}
+                    className="surface-card hover-lift p-5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="font-semibold">{t.name}</h3>
+                      <Badge variant="outline" className={accentClasses(t.accent)}>
+                        public
+                      </Badge>
+                    </div>
+                    {courseName(t.course_id) && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {courseName(t.course_id)}
+                      </p>
+                    )}
+                    <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                      {t.description || t.project_goal || "No description yet."}
+                    </p>
+                    <div className="mt-4">
+                      {isMember ? (
+                        <Badge variant="secondary">You're a member</Badge>
+                      ) : state.kind === "pending" && myRequest ? (
+                        <div className="flex items-center gap-2">
+                          <Badge variant="secondary">Request pending</Badge>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={cancelling === myRequest.id}
+                            onClick={() => withdraw(myRequest.id)}
+                          >
+                            {cancelling === myRequest.id && (
+                              <Loader2 className="mr-1.5 size-4 animate-spin" />
+                            )}
+                            Cancel request
+                          </Button>
+                        </div>
+                      ) : state.kind === "wait" ? (
+                        <Badge variant="outline">
+                          Declined. You can ask again on {state.retryOn.toLocaleDateString()}
+                        </Badge>
+                      ) : (
+                        <Button size="sm" onClick={() => setAskTeam({ id: t.id, name: t.name })}>
+                          Request to join
+                        </Button>
+                      )}
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </motion.div>
+          )}
         </TabsContent>
       </Tabs>
+
+      <Dialog open={!!askTeam} onOpenChange={(v) => !v && setAskTeam(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request to join {askTeam?.name}</DialogTitle>
+            <DialogDescription>
+              The team owner and admins will see your name, courses and skills with your message,
+              then approve or decline.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Textarea
+              aria-label="Message to the team"
+              rows={3}
+              maxLength={300}
+              placeholder="Say hi and why you would like to join (optional)"
+              value={askMessage}
+              onChange={(e) => setAskMessage(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">{askMessage.length}/300</p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAskTeam(null)}>
+              Cancel
+            </Button>
+            <Button onClick={sendRequest} disabled={asking}>
+              {asking && <Loader2 className="mr-2 size-4 animate-spin" />}
+              Send request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <InviteToTeamDialog
+        person={inviting}
+        teams={managedTeams}
+        open={!!inviting}
+        onOpenChange={(v) => !v && setInviting(null)}
+      />
     </AppShell>
   );
 }
